@@ -2,7 +2,7 @@
 -- edited by DarKSunrise aka Assassini
 -- to work with Luapad and with Lua-syntax
 if (SERVER) then
-  return;
+  return
 end
 
 luapad.KeyWordTokens = {
@@ -31,87 +31,86 @@ luapad.KeyWordTokens = {
   ["&&"] = true
 }
 
-luapad.EditorPanel = {};
+luapad.EditorPanel = {}
 
 -- Create fonts
 surface.CreateFont("LuapadEditor", {font = "Courier New", size = 16, weight = 400})
 surface.CreateFont("LuapadEditor_Bold", {font = "Courier New", size = 16, weight = 800})
---
 
 function luapad.EditorPanel:Init()
-  self:SetCursor("beam");
+  self:SetCursor("beam")
 
-  surface.SetFont("LuapadEditor");
-  self.FontWidth, self.FontHeight = surface.GetTextSize(" ");
+  surface.SetFont("LuapadEditor")
+  self.FontWidth, self.FontHeight = surface.GetTextSize(" ")
 
-  self.Rows = {""};
-  self.Caret = {1, 1};
-  self.Start = {1, 1};
-  self.Scroll = {1, 1};
-  self.Size = {1, 1};
-  self.Undo = {};
-  self.Redo = {};
-  self.PaintRows = {};
+  self.Rows = {""}
+  self.Caret = {1, 1}
+  self.Start = {1, 1}
+  self.Scroll = {1, 1}
+  self.Size = {1, 1}
+  self.Undo = {}
+  self.Redo = {}
+  self.PaintRows = {}
 
-  self.Blink = RealTime();
+  self.Blink = RealTime()
 
-  self.ScrollBar = vgui.Create("DVScrollBar", self);
-  self.ScrollBar:SetUp(1, 1);
+  self.ScrollBar = vgui.Create("DVScrollBar", self)
+  self.ScrollBar:SetUp(1, 1)
 
-  self.TextEntry = vgui.Create("TextEntry", self);
-  self.TextEntry:SetMultiline(true);
+  self.TextEntry = vgui.Create("TextEntry", self)
+  self.TextEntry:SetMultiline(true)
   self.TextEntry:SetAllowNonAsciiCharacters(true)
-  self.TextEntry:SetSize(0, 0);
+  self.TextEntry:SetSize(0, 0)
 
   self.TextEntry.OnLoseFocus = function(self)
-    self.Parent:_OnLoseFocus();
+    self.Parent:_OnLoseFocus()
   end
   self.TextEntry.OnTextChanged = function(self)
-    self.Parent:_OnTextChanged();
+    self.Parent:_OnTextChanged()
   end
   self.TextEntry.OnKeyCodeTyped = function(self, code)
-    self.Parent:_OnKeyCodeTyped(code);
+    self.Parent:_OnKeyCodeTyped(code)
   end
 
-  self.TextEntry.Parent = self;
+  self.TextEntry.Parent = self
 
-  self.LastClick = 0;
+  self.LastClick = 0
 end
 
 function luapad.EditorPanel:RequestFocus()
-  self.TextEntry:RequestFocus();
+  self.TextEntry:RequestFocus()
 end
 
 function luapad.EditorPanel:OnGetFocus()
-  self.TextEntry:RequestFocus();
+  self.TextEntry:RequestFocus()
 end
 
 function luapad.EditorPanel:CursorToCaret()
-  local x, y = self:CursorPos();
+  local x, y = self:CursorPos()
 
-  x = x - (self.FontWidth * 3 + 6);
+  x = x - (self.FontWidth * 3 + 6)
   if (x < 0) then
-    x = 0;
+    x = 0
   end
   if (y < 0) then
-    y = 0;
+    y = 0
   end
 
-  local line = math.floor(y / self.FontHeight);
-  local char = math.floor(x / self.FontWidth + 0.5);
+  local line = math.floor(y / self.FontHeight)
+  local char = math.floor(x / self.FontWidth + 0.5)
 
-  line = line + self.Scroll[1];
-  char = char + self.Scroll[2];
+  line = line + self.Scroll[1]
+  char = char + self.Scroll[2]
 
   if (line > #self.Rows) then
-    line = #self.Rows;
+    line = #self.Rows
   end
-  local length = string.len(self.Rows[line]);
+  local length = string.len(self.Rows[line])
   if (char > length + 1) then
-    char = length + 1;
+    char = length + 1
   end
 
-  return {line, char};
+  return {line, char}
 end
 
 function luapad.EditorPanel:OnMousePressed(code)
@@ -223,19 +222,19 @@ function luapad.EditorPanel:OnMouseReleased(code)
 end
 
 function luapad.EditorPanel:SetText(text)
-  self.Rows = string.Explode("\n", text);
+  self.Rows = string.Explode("\n", text)
   if (self.Rows[#self.Rows] ~= "") then
-    self.Rows[#self.Rows + 1] = "";
+    self.Rows[#self.Rows + 1] = ""
   end
 
-  self.Caret = {1, 1};
-  self.Start = {1, 1};
-  self.Scroll = {1, 1};
-  self.Undo = {};
-  self.Redo = {};
-  self.PaintRows = {};
+  self.Caret = {1, 1}
+  self.Start = {1, 1}
+  self.Scroll = {1, 1}
+  self.Undo = {}
+  self.Redo = {}
+  self.PaintRows = {}
 
-  self.ScrollBar:SetUp(self.Size[1], #self.Rows - 1);
+  self.ScrollBar:SetUp(self.Size[1], #self.Rows - 1)
 end
 
 function luapad.EditorPanel:GetValue()
@@ -259,7 +258,7 @@ end
 
 function luapad.EditorPanel:SyntaxColorLine(row)
   local cols = {}
-  local lasttable;
+  local lasttable
   self.line = self.Rows[row]
   self.pos = 0
   self.char = ""
@@ -278,13 +277,13 @@ function luapad.EditorPanel:SyntaxColorLine(row)
     ["comment"] = {Color(0, 120, 0, 255), false}
   }
 
-  colors["string2"] = colors["string"];
+  colors["string2"] = colors["string"]
 
-  self:NextChar();
+  self:NextChar()
 
   while self.char do
-    token = "";
-    self.str = "";
+    token = ""
+    self.str = ""
 
     while self.char and self.char == " " do
       self:NextChar()
@@ -302,7 +301,7 @@ function luapad.EditorPanel:SyntaxColorLine(row)
     elseif (self.char >= "a" and self.char <= "z" or self.char >= "A" and self.char <= "Z") then
 
       while self.char and (self.char >= "a" and self.char <= "z" or self.char >= "A" and self.char <= "Z" or self.char >= "0" and self.char <= "9" or self.char == "_") do
-        self:NextChar();
+        self:NextChar()
       end
 
       local sstr = string.Trim(self.str)
@@ -316,19 +315,19 @@ function luapad.EditorPanel:SyntaxColorLine(row)
       elseif (gstr and (tgstr == "function" or gstr == "f" or gstr == "e" or gstr == "m" or tgstr == "table") or (lasttable and lasttable[sstr])) then -- Could be better code, but what the hell; it works
 
         if (tgstr == "table") then
-          lasttable = gstr;
+          lasttable = gstr
         end
 
         if ((gstr == "e" or (_E and _E[sstr])) and sstr == string.upper(sstr)) then
-          token = "enumeration";
+          token = "enumeration"
         elseif (gstr == "m") then
-          token = "metatable";
+          token = "metatable"
         else
-          token = "function";
+          token = "function"
         end
 
       else
-        lasttable = nil;
+        lasttable = nil
         token = "none"
       end
     elseif (self.char == "\"") then -- TODO: Fix multi line strings, and add support for [[stuff]]!
@@ -355,9 +354,9 @@ function luapad.EditorPanel:SyntaxColorLine(row)
       self:NextChar()
 
       token = "string2"
-    elseif (self.char == "/" or self.char == "-") then -- TODO: Multiline comments!
+    elseif (self.char == "/" or self.char == "-") then -- TODO: Multi-line comments!
 
-      local lastchar = self.char;
+      local lastchar = self.char
       self:NextChar()
 
       if (self.char == lastchar) then
@@ -367,7 +366,7 @@ function luapad.EditorPanel:SyntaxColorLine(row)
 
         token = "comment"
       else
-        token = "none";
+        token = "none"
       end
 
     else
@@ -383,7 +382,7 @@ function luapad.EditorPanel:SyntaxColorLine(row)
     end
   end
 
-  return cols;
+  return cols
 end
 
 function luapad.EditorPanel:PaintLine(row)
@@ -818,7 +817,7 @@ function luapad.EditorPanel:_OnKeyCodeTyped(code)
   local control = input.IsKeyDown(KEY_LCONTROL) or input.IsKeyDown(KEY_RCONTROL)
 
   if (control and alt and code == KEY_S) then
-    luapad.SaveAsScript();
+    luapad.SaveAsScript()
   end
 
   if (alt) then
@@ -848,11 +847,11 @@ function luapad.EditorPanel:_OnKeyCodeTyped(code)
     elseif (code == KEY_Q) then
       self:GetParent():Close()
     elseif (code == KEY_S) then
-      luapad.SaveScript();
+      luapad.SaveScript()
     elseif (code == KEY_O) then
-      luapad.OpenScript();
+      luapad.OpenScript()
     elseif (code == KEY_N) then
-      luapad.NewTab();
+      luapad.NewTab()
     elseif (code == KEY_UP) then
       self.Scroll[1] = self.Scroll[1] - 1
       if (self.Scroll[1] < 1) then
@@ -1163,4 +1162,4 @@ end
 function luapad.EditorPanel:OnShortcut()
 end
 
-vgui.Register("LuapadEditor", luapad.EditorPanel, "Panel");
+vgui.Register("LuapadEditor", luapad.EditorPanel, "Panel")
