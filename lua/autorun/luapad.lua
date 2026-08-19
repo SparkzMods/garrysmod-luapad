@@ -578,11 +578,12 @@ function luapad.OpenScript()
   luapad.OpenTree:SetPos(x + (luapad.PropertySheet:GetWide() - luapad.PropertySheet:GetWide() / 4), y + 22)
   luapad.OpenTree:SetSize(luapad.PropertySheet:GetWide() / 4, luapad.PropertySheet:GetTall() - 23)
 
-  function luapad.OpenTree.DoClick()
+  function luapad.OpenTree:DoClick()
     local pNode = luapad.OpenTree:GetSelectedItem()
-    local format = string.Explode(".", pNode.Label:GetValue())[#string.Explode(".", pNode.Label:GetValue())]
+    local tPath = string.Explode(".", pNode.Label:GetValue())
+    local nPath = #tPath
 
-    if (#string.Explode(".", pNode.Label:GetValue()) ~= 1 and (format == "txt")) then
+    if (nPath ~= 1 and (tPath[nPath] == "txt")) then
       Msg(pNode.Path)
       luapad.AddTab(
         pNode.Label:GetValue(), file.Read((string.gsub(pNode.Path, "data/", "") .. pNode.Label:GetValue()), "DATA"),
@@ -725,37 +726,28 @@ function luapad.SaveAsScript()
 
   Derma_StringRequest(
     "Luapad", "You are about to save a file, please enter the desired filename.",
-    pTab:GetPanel().path .. pTab:GetPanel().name,
+    pTab[APP_PANL_STORKY].Path .. pTab[APP_PANL_STORKY].Name,
 
-    function(filename)
-      if (table.HasValue(RESTRICTED_FILES_LIST, filename)) then
+    function(sName)
+      if (table.HasValue(RESTRICTED_FILES_LIST, sName)) then
         luapad.SetStatus("Save failed! (this file is marked as restricted)", "SAVE_ER")
         return
       end
       local contents = pTab:GetPanel():GetItems()[1]:GetValue() or ""
-      if string.find(filename, "../") == 1 then
-        filename = string.gsub(filename, "../", "", 1)
+
+      if string.find(sName, "../") == 1 then
+        sName = string.gsub(sName, "../", "", 1)
       end -- I really do hate how '.' is a wildcard...
 
-      local dirs = string.Explode("/", string.gsub(filename, "data/", "", 1))
-      local d = ""
-      for k, v in ipairs(dirs) do
-        if k == #dirs then
-          break
-        end -- don't make a directory for the filename
-        d = (d .. v .. "/")
-        if not file.IsDir(d, "DATA") then
-          file.CreateDir(d)
-        end
-      end
+      file.CreateDir(string.gsub(sName, "^data/", "", 1))
 
-      file.Write(string.gsub(filename, "data/", "", 1), contents)
+      file.Write(string.gsub(sName, "^data/", "", 1), contents)
 
-      if file.Exists(string.gsub(filename, "data/", "", 1), "DATA") then
+      if file.Exists(string.gsub(sName, "data/", "", 1), "DATA") then
         luapad.SetStatus("File successfully saved!", "SAVE_OK")
-        pTab:GetPanel().name = string.Explode("/", filename)[#string.Explode("/", filename)]
-        pTab:GetPanel().path = string.gsub(filename, pTab:GetPanel().name, "", 1)
-        pTab:SetText(string.Explode("/", filename)[#string.Explode("/", filename)])
+        pTab[APP_PANL_STORKY].Name = string.GetFileFromFilename(sName)
+        pTab[APP_PANL_STORKY].Path = string.GetPathFromFilename(sName)
+        pTab:SetText(pTab[APP_PANL_STORKY].Name)
         luapad.PropertySheet:SetActiveTab(pTab)
       else
         luapad.SetStatus("Save failed! (check your filename for illegal characters)", "SAVE_ER")
