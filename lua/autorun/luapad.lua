@@ -13,14 +13,30 @@
 
 luapad = {}
 luapad.OpenFiles = {}
-luapad.BaseFolder = "luapad/"
-luapad.UntitleFmt = "untitled%d.txt"
 
-luapad.RestrictedFiles = {
-  "data/luapad/_server_globals.txt",
-  "data/luapad/_cached_server_globals.txt",
-  "addons/Luapad/data/luapad/_server_globals.txt",
-  "addons/Luapad/data/luapad/_cached_server_globals.txt"
+local APP_BASE_DELIMS = "|"
+local APP_BASE_FOLDER = "luapad/"
+local APP_BASE_FMNAME = "untitled%d.txt"
+local APP_PANL_STORKY = "gmod_luapad"
+
+local ACCEPTED_STEAMS = {
+  ["luapad.Upload"] = true,
+  ["luapad.UploadClient"] = true
+}
+
+local RESTRICTED_FILES_LIST = {
+  "data/"..APP_BASE_FOLDER.."_savedtabs.txt",
+  "data/"..APP_BASE_FOLDER.."_server_globals.txt",
+  "data/"..APP_BASE_FOLDER.."_cached_server_globals.txt",
+  "addons/Luapad/data/"..APP_BASE_FOLDER.."_savedtabs.txt",
+  "addons/Luapad/data/"..APP_BASE_FOLDER.."_server_globals.txt",
+  "addons/Luapad/data/"..APP_BASE_FOLDER.."_cached_server_globals.txt"
+}
+
+local FMT_SYNTAX_HIGHLIGHT = {
+  V = "luapad._sG[\"%s\"] = \"%s\";",
+  T = "luapad._sG[\"%s\"] = {};",
+  D = "luapad._sG[\"%s\"][\"%s\"] = \"%s\";"
 }
 
 luapad.debugmode = false
@@ -56,28 +72,34 @@ if (SERVER) then
     AddCSLuaFile("autorun/luapad_editor.lua")
   end
 
-  local content =
-    "-- This is an automatically generated cache file for server-side global functions, meta-tables, and enumerations\n-- Don't touch it, or you'll probably mess up your syntax highlighting\n\nluapad._sG = {};\n"
+  local content = table.concat({
+    "-- This is an automatically generated cache file for server-side\n"
+    "-- The content includes global functions, meta-tables, and enumerations\n",
+    "-- Don't touch it, or you'll probably mess up your syntax highlighting",
+    "\n\nluapad._sG = {};\n"
+  })
+
   local endcontent = ""
 
   for k, v in pairs(_G) do
-    if (type(v) == "function" or type(v) == "table") then
-      if (type(v) == "function") then
-        content = content .. "luapad._sG[\"" .. k .. "\"] = \"f\";\n"
+    local typev = type(v)
+    if (typev == "function" or typev == "table") then
+      if (typev == "function") then
+        content = content .. FMT_SYNTAX_HIGHLIGHT.V:format(k, "f") .. "\n"
       else
         local hasfunc = false
         for k, v in pairs(v) do
-          if (type(v) == "function") then
+          if (typev == "function") then
             hasfunc = true
             break
           end
         end
 
         if (hasfunc) then
-          content = content .. "luapad._sG[\"" .. k .. "\"] = {};\n"
+          content = content .. FMT_SYNTAX_HIGHLIGHT.T:format(k) .. "\n"
           for k2, v2 in pairs(v) do
             if (type(v2) == "function") then
-              endcontent = endcontent .. "luapad._sG[\"" .. k .. "\"]" .. "[\"" .. k2 .. "\"] = \"f\";\n"
+              endcontent = endcontent .. FMT_SYNTAX_HIGHLIGHT.D:format(k, k2, "f") .. "\n"
             end
           end
         end
@@ -91,8 +113,9 @@ if (SERVER) then
 
   if (_E) then
     for k, v in pairs(_E) do
-      if ((type(v) ~= "function" or type(v) ~= "table") and string.upper(k) == k) then
-        content = content .. "luapad._sG[\"" .. k .. "\"] = \"e\";\n"
+      local typev = type(v)
+      if ((typev ~= "function" or typev ~= "table") and string.upper(k) == k) then
+        content = content .. FMT_SYNTAX_HIGHLIGHT.V:format(k, "e") .. "\n"
       end
     end
   end
@@ -100,10 +123,11 @@ if (SERVER) then
   local content = content .. "\n\n-- Meta-tables\n\n"
 
   for k, v in pairs(debug.getregistry()) do
-    if (type(v) == "table") then
+    local typev = type(v)
+    if (typev == "table") then
       local hasfunc = false
       for k, v in pairs(v) do
-        if (type(v) == "function") then
+        if (typev == "function") then
           hasfunc = true
           break
         end
@@ -111,19 +135,20 @@ if (SERVER) then
 
       if (hasfunc) then
         for k2, v2 in pairs(v) do
-          if (type(v2) == "function" and not string.find(content, "luapad._sG[\"" .. k2 .. "\"] = \"m\";")) then
-            content = content .. "luapad._sG[\"" .. k2 .. "\"] = \"m\";\n"
+          local row = FMT_SYNTAX_HIGHLIGHT:V:format(k2, "m")
+          if (type(v2) == "function" and not string.find(content, row)) then
+            content = content .. row .. "\n"
           end
         end
       end
     end
   end
 
-  -- file.Write("luapad/_server_globals.txt", content)
+  file.Write(APP_BASE_FOLDER.."_server_globals.txt", content)
 
-  -- resource.AddFile("data/luapad/_server_globals.txt")
-  -- resource.AddFile("data/luapad/_welcome.txt")
-  -- resource.AddFile("data/luapad/_about.txt")
+  resource.AddFile("data/"..APP_BASE_FOLDER.."_server_globals.txt")
+  resource.AddFile("data/"..APP_BASE_FOLDER.."_welcome.txt")
+  resource.AddFile("data/"..APP_BASE_FOLDER.."_about.txt")
 
   function luapad.Upload(len, ply)
     if not CanUseLuapad(ply) then
@@ -158,10 +183,10 @@ if (SERVER) then
   net.Receive("luapad.UploadClient", luapad.UploadClient)
 
   local function AcceptStream(ply, handler, id)
-    if (ply:IsAdmin() or ply:IsSuperAdmin()) and (handler == "luapad.Upload" or handler == "luapad.UploadClient") then
+    if (ply:IsAdmin() or ply:IsSuperAdmin()) and ACCEPTED_STEAMS[handler] then
       return true
     end
-    if (not ply:IsAdmin()) and (handler == "luapad.Upload" or handler == "luapad.UploadClient") then
+    if (not ply:IsAdmin()) and ACCEPTED_STEAMS[handler] then
       return false
     end
   end
@@ -178,18 +203,18 @@ if (CLIENT) then
   net.Receive("luapad.DownloadRunClient", luapad.DownloadRunClient)
 end
 
-if (file.Exists("luapad/_server_globals.txt", "DATA")) then
-  RunString(file.Read("luapad/_server_globals.txt", "DATA"))
+if (file.Exists(APP_BASE_FOLDER.."_server_globals.txt", "DATA")) then
+  RunString(file.Read(APP_BASE_FOLDER.."_server_globals.txt", "DATA"))
 else
   include("server_globals.lua")
-  -- RunString(file.Read("luapad/_cached_server_globals.txt", "DATA"))
+  RunString(file.Read(APP_BASE_FOLDER.."_cached_server_globals.txt", "DATA"))
 end
 
 function luapad.About()
-  if (not file.Exists("luapad/_about.txt", "DATA")) then
+  if (not file.Exists(APP_BASE_FOLDER.."_about.txt", "DATA")) then
     return
   end
-  luapad.AddTab("_about.txt", file.Read("luapad/_about.txt", "DATA"), "data/luapad/")
+  luapad.AddTab("_about.txt", file.Read(APP_BASE_FOLDER.."_about.txt", "DATA"), "data/"..APP_BASE_FOLDER)
 end
 
 function luapad.ToIcon(sIco)
@@ -199,19 +224,19 @@ end
 function luapad.CheckGlobal(func)
   if (luapad._sG[func] ~= nil) then
     if (luapad.debugmode) then
-      Msg("found " .. func .. " in luapad._sG")
+      Msg("Found " .. func .. " in luapad._sG")
     end
     return luapad._sG[func]
   end
   if (_E and _E[func] ~= nil) then
     if (luapad.debugmode) then
-      Msg("found " .. func .. " in _E")
+      Msg("Found " .. func .. " in _E")
     end
     return _E[func]
   end
   if (_G[func] ~= nil) then
     if (luapad.debugmode) then
-      Msg("found " .. func .. " in _G")
+      Msg("Found " .. func .. " in _G")
     end
     return _G[func]
   end
@@ -228,6 +253,29 @@ function luapad.OnPlayerQuit() -- save my open tabs you bastard!
     savtbl[k].name = strTbl[#strTbl]
     savtbl[k].prename = string.Left(v, string.len(v) - string.len(strTbl[#strTbl]))
     savtbl[k].location = "../" .. v
+  end
+end
+
+function luapad.SaveTabs()
+  local tO, tW = {"", "", "", ""}, {}
+  local tI = luapad.PropertySheet:GetItems()
+  for iD = 1, #tI do
+    local tP = tI[iD]
+    local tS = tP.Tab[APP_PANL_STORKY]
+    tO[1], tO[2] = tS.Name , tS.Path
+    tO[3], tO[4] = tS.Label, tS.Icon
+    table.insert(tW, table.concat(tO, APP_BASE_DELIMS))
+  end
+  file.Write(APP_BASE_FOLDER.."_savedtabs.txt", table.concat(tW, "\n"))
+end
+
+function luapad.LoadTabs()
+  local sF = file.Read(APP_BASE_FOLDER.."_savedtabs.txt", "DATA" )
+  if(not sF) then return end -- File not found then bail out
+  local tW = ("[\r\n]+"):Explode(sF, true) -- Explode on new line
+  for iD = 1, #tW do
+    local tO = APP_BASE_DELIMS:Explode(tW[iD])
+    luapad.AddTab(tO[1], file.Read(tO[2]..tO[1], "DATA"), "data/"..APP_BASE_FOLDER, tO[3], tO[4])
   end
 end
 
@@ -293,24 +341,16 @@ function luapad.Toggle()
     luapad.PropertySheet:SetSize(luapad.Frame:GetWide() - 6, luapad.Frame:GetTall() - 82)
     luapad.PropertySheet:SetPadding(1)
     luapad.PropertySheet:SetFadeTime(0)
-    luapad.PropertySheet.____SetActiveTab = luapad.PropertySheet.SetActiveTab
-    luapad.PropertySheet.SetActiveTab = function(...)
-      luapad.PropertySheet.____SetActiveTab(...)
-      local pTab = luapad.PropertySheet:GetActiveTab()
-      if (IsValid(pTab)) then
-        luapad.Frame:SetTitle("Luapad - " .. pTab.path .. pTab.name)
-      end
+    function luapad.PropertySheet:OnActiveTabChanged(oT, nT)
+      luapad.Frame:SetTitle("Luapad - " .. pTab.Path .. pTab.Name)
     end
+
     luapad.PropertySheet:InvalidateLayout()
 
-    if (file.Exists("luapad/savedtabs.txt", "DATA")) then
-    --[[
-      for k,v in pairs(glon.decode(file.Read("luapad/savedtabs.txt", "DATA"))) do
-        luapad.AddTab(v.name, file.Read(v.location, "DATA"), v.prename)
-      end
-    ]]
-    elseif (file.Exists("luapad/_welcome.txt", "DATA")) then
-      luapad.AddTab("_welcome.txt", file.Read("luapad/_welcome.txt", "DATA"), "data/luapad/")
+    if (file.Exists(APP_BASE_FOLDER.."_savedtabs.txt", "DATA")) then
+
+    elseif (file.Exists(APP_BASE_FOLDER.."_welcome.txt", "DATA")) then
+      luapad.AddTab("_welcome.txt", file.Read(APP_BASE_FOLDER.."_welcome.txt", "DATA"), "data/"..APP_BASE_FOLDER)
     else
       luapad.NewTab()
     end
@@ -324,14 +364,14 @@ function luapad.Toggle()
     luapad.Statusbar.PerformLayout = luapad.Toolbar.PerformLayout
     luapad.Statusbar:InvalidateLayout()
 
-    luapad.AddToolbarItem("New (CTRL + N)", "icon16/page_white_add.png", luapad.NewTab)
-    luapad.AddToolbarItem("Open (CTRL + O)", "icon16/folder_page_white.png", luapad.OpenScript)
-    luapad.AddToolbarItem("Save (CTRL + S)", "icon16/disk.png", luapad.SaveScript)
-    luapad.AddToolbarItem("Save As (CTRL + ALT + S)", "icon16/disk_multiple.png", luapad.SaveAsScript)
+    luapad.AddToolbarItem("New (CTRL + N)", luapad.ToIcon("page_white_add"), luapad.NewTab)
+    luapad.AddToolbarItem("Open (CTRL + O)", luapad.ToIcon("folder_page_white"), luapad.OpenScript)
+    luapad.AddToolbarItem("Save (CTRL + S)", luapad.ToIcon("disk"), luapad.SaveScript)
+    luapad.AddToolbarItem("Save As (CTRL + ALT + S)", luapad.ToIcon("disk_multiple"), luapad.SaveAsScript)
     luapad.AddToolbarSpacer()
-    luapad.AddToolbarItem("Close tab", "icon16/page_white_delete.png", luapad.CloseActiveTab)
+    luapad.AddToolbarItem("Close tab", luapad.ToIcon("page_white_delete"), luapad.CloseActiveTab)
     luapad.AddToolbarItem(
-      "Run script", "icon16/page_white_go.png", function()
+      "Run script", luapad.ToIcon("page_white_go"), function()
         local menu = DermaMenu()
         menu:AddOption("Client", luapad.RunScriptClient)
         menu:AddOption("Server", luapad.RunScriptServer)
@@ -350,14 +390,15 @@ function luapad.Toggle()
   end
 end
 
-function luapad.AddToolbarItem(tooltip, mat, func)
-  local button = vgui.Create("DImageButton")
-  button:SetImage(mat)
-  button:SetTooltip(tooltip)
-  button:SetSize(16, 16)
-  button.DoClick = func
+function luapad.AddToolbarItem(tooltip, mat, func1, func2)
+  local pButton = vgui.Create("DImageButton")
+  pButton:SetImage(mat)
+  pButton:SetTooltip(tooltip)
+  pButton:SetSize(16, 16)
+  pButton.DoClick = func1
+  pButton.DoRightClick = func2
 
-  luapad.Toolbar:AddItem(button)
+  luapad.Toolbar:AddItem(pButton)
 end
 
 function luapad.AddToolbarSpacer()
@@ -373,25 +414,25 @@ function luapad.SetStatus(str, clr)
   timer.Remove("luapad.Statusbar.Fade")
   luapad.Statusbar:Clear()
 
-  local msg = vgui.Create("DLabel", luapad.Statusbar)
-  msg:SetText(str)
-  msg:SetTextColor(clr)
-  msg:SizeToContents()
+  local pLab = vgui.Create("DLabel", luapad.Statusbar)
+  pLab:SetText(str)
+  pLab:SetTextColor(clr)
+  pLab:SizeToContents()
 
   timer.Create(
     "luapad.Statusbar.Fade", 0.01, 0, function(clr)
-      local msg = luapad.Statusbar:GetItems()[1]
-      local col = msg:GetTextColor()
-      col.a = math.Clamp(col.a - 1, 0, 255)
-      msg:SetTextColor(Color(col.r, col.g, col.b, col.a))
+      local pLab = luapad.Statusbar:GetItems()[1]
+      local cPnt = pLab:GetTextColor()
+      cPnt.a = math.Clamp(cPnt.a - 1, 0, 255)
+      pLab:SetTextColor(Color(cPnt.r, cPnt.g, cPnt.b, cPnt.a))
 
-      if (col.a == 0) then
+      if (cPnt.a == 0) then
         timer.Destroy("luapad.Statusbar.Fade")
       end
     end
   )
 
-  luapad.Statusbar:AddItem(msg)
+  luapad.Statusbar:AddItem(pLab)
   surface.PlaySound("common/wpn_select.wav")
 end
 
@@ -414,17 +455,17 @@ function luapad.CloseTab(name, label)
 end
 
 function luapad.AddTab(name, content, path, label, icon)
-  content, path = (content or ""), (path or "")
-  name, icon = (name or ""), (icon or "page_white")
+  content = tostring(content or "")
+  path    = tostring(path or "page_white")
+  name    = tostring(name or "page_white")
+  icon    = tostring(icon or "page_white")
+  label   = ((label and label ~= "") and tostring(label) or nil)
 
   local pSheet = luapad.PropertySheet
   if(not IsValid(pSheet)) then return end
 
   local pForm = vgui.Create("DScrollPanel", pSheet)
   pForm:SetSize(pSheet:GetWide(), pSheet:GetTall() - 23)
-  pForm.name = name
-  pForm.path = path
-  pForm.label = label
 
   local pText = vgui.Create("LuapadEditor", pForm)
   pText:Dock(FILL)
@@ -434,19 +475,22 @@ function luapad.AddTab(name, content, path, label, icon)
   pForm:AddItem(pText)
 
   table.insert(luapad.OpenFiles, path .. name)
-  pSheet:AddSheet(tostring(label or name), pForm, luapad.ToIcon(icon), false, false)
-  pSheet:SetActiveTab(pSheet.Items[#pSheet.Items].Tab)
+
+  local tInfo = pSheet:AddSheet(tostring(label or name), pForm, luapad.ToIcon(icon), false, false)
+  local pTab  = tInfo.Tab
+        pTab[APP_PANL_STORKY] = {}
+        pTab[APP_PANL_STORKY].Name  = name
+        pTab[APP_PANL_STORKY].Path  = path
+        pTab[APP_PANL_STORKY].Label = label
+        pTab[APP_PANL_STORKY].Icon  = icon
+
+  pSheet:SetActiveTab(tInfo.Tab)
   pSheet:InvalidateLayout()
 end
 
 function luapad.NewTab(content)
-  local fSrc = luapad.UntitleFmt
-  local sBase, iF = luapad.BaseFolder, nil
-  local sOrg, tOpen = sBase .. fSrc, luapad.OpenFiles
-
-  if (type(content) ~= "string") then
-    content = ""
-  end -- nobody likes nil.
+  local iF, tOpen = nil, luapad.OpenFiles
+  local sOrg = APP_BASE_FOLDER .. APP_BASE_FMNAME
 
   for iD = 1, 1000 do
     local sF = sOrg:format(iD)
@@ -456,7 +500,7 @@ function luapad.NewTab(content)
     end
   end
 
-  luapad.AddTab(fSrc:format(iF), content, "data/" .. sBase)
+  luapad.AddTab(APP_BASE_FMNAME:format(iF), content, "data/" .. APP_BASE_FOLDER)
 end
 
 function luapad.CloseActiveTab()
@@ -488,14 +532,14 @@ function luapad.OpenScript()
   luapad.OpenTree:SetSize(luapad.PropertySheet:GetWide() / 4, luapad.PropertySheet:GetTall() - 23)
 
   luapad.OpenTree.DoClick = function()
-    local node = luapad.OpenTree:GetSelectedItem()
-    local format = string.Explode(".", node.Label:GetValue())[#string.Explode(".", node.Label:GetValue())]
+    local pNode = luapad.OpenTree:GetSelectedItem()
+    local format = string.Explode(".", pNode.Label:GetValue())[#string.Explode(".", pNode.Label:GetValue())]
 
-    if (#string.Explode(".", node.Label:GetValue()) ~= 1 and (format == "txt")) then
-      Msg(node.Path)
+    if (#string.Explode(".", pNode.Label:GetValue()) ~= 1 and (format == "txt")) then
+      Msg(pNode.Path)
       luapad.AddTab(
-        node.Label:GetValue(), file.Read((string.gsub(node.Path, "data/", "") .. node.Label:GetValue()), "DATA"),
-        node.Path
+        pNode.Label:GetValue(), file.Read((string.gsub(pNode.Path, "data/", "") .. pNode.Label:GetValue()), "DATA"),
+        pNode.Path
       )
       luapad.OpenTree:Remove()
     end
@@ -510,12 +554,12 @@ function luapad.OpenScript()
     luapad.OpenTree:Remove()
   end
 
-  local node = luapad.OpenTree:AddNode("garrysmod\\data"); -- TODO: luapad.CreateFolder() function for this
-  node.RootFolder = "data"
-  node:MakeFolder("data", "GAME", true)
-  node.Icon:SetImage("icon16/computer.png")
+  local pNode = luapad.OpenTree:AddNode("garrysmod/data"); -- TODO: luapad.CreateFolder() function for this
+  pNode.RootFolder = "data"
+  pNode:MakeFolder("data", "GAME", true)
+  pNode.Icon:SetImage(luapad.ToIcon("computer"))
 
-  node.AddNode = function(self, strName)
+  pNode.AddNode = function(self, strName)
     self:CreateChildNodes()
 
     local pNode = vgui.Create("DTree_Node", self)
@@ -531,10 +575,10 @@ function luapad.OpenScript()
 
     while (folder) do
       if (folder.Label) then
-        if (label ~= "garrysmod\\data"      and -- TODO: luapad.CreateFolder() function for this
-            label ~= "garrysmod\\lua"       and
-            label ~= "garrysmod\\addons"    and
-            label ~= "garrysmod\\gamemodes" and -- Don't really know what I'm doing here, but it seems to work...
+        if (label ~= "garrysmod/data"      and -- TODO: luapad.CreateFolder() function for this
+            label ~= "garrysmod/lua"       and
+            label ~= "garrysmod/addons"    and
+            label ~= "garrysmod/gamemodes" and -- Don't really know what I'm doing here, but it seems to work...
             label ~= "") then
           pNode.Path = folder.Label:GetValue() .. "/" .. pNode.Path
         end
@@ -559,7 +603,7 @@ function luapad.OpenScript()
 
     pNode.Path = root .. "/" .. pNode.Path
 
-    if (table.HasValue(luapad.RestrictedFiles, pNode.Path .. pNode.Label:GetValue())) then
+    if (table.HasValue(RESTRICTED_FILES_LIST, pNode.Path .. pNode.Label:GetValue())) then
       pNode:Remove()
       return
     end
@@ -567,11 +611,11 @@ function luapad.OpenScript()
     local format = string.Explode(".", strName)[#string.Explode(".", strName)]
 
     if (format == strName) then
-      pNode.Icon:SetImage("icon16/folder.png")
+      pNode.Icon:SetImage(luapad.ToIcon("folder"))
     elseif (format == "txt") then
-      pNode.Icon:SetImage("icon16/page_white.png")
+      pNode.Icon:SetImage(luapad.ToIcon("page_white"))
     else
-      pNode.Icon:SetImage("icon16/page_white_delete.png")
+      pNode.Icon:SetImage(luapad.ToIcon("page_white_delete"))
     end
 
     self.ChildNodes:Add(pNode)
@@ -580,23 +624,23 @@ function luapad.OpenScript()
   end
 
   --[[--Some weird shit is happening with these, so don't really care unless people really need them...
-  local node2 = luapad.OpenTree:AddNode("garrysmod\\lua"); -- TODO: luapad.CreateFolder() function for this
+  local node2 = luapad.OpenTree:AddNode("garrysmod/lua"); -- TODO: luapad.CreateFolder() function for this
   node2.RootFolder = "lua"
   node2:MakeFolder("lua", "GAME", true)
-  node2.Icon:SetImage("icon16/folder_page_white.png")
-  node2.AddNode = node.AddNode
+  node2.Icon:SetImage(luapad.ToIcon("folder_page_white.png"))
+  node2.AddNode = pNode.AddNode
 
-  local node2 = luapad.OpenTree:AddNode("garrysmod\\addons"); -- TODO: luapad.CreateFolder() function for this
+  local node2 = luapad.OpenTree:AddNode("garrysmod/addons"); -- TODO: luapad.CreateFolder() function for this
   node2.RootFolder = "addons"
   node2:MakeFolder("addons", "GAME", true)
-  node2.Icon:SetImage("icon16/box.png")
-  node2.AddNode = node.AddNode
+  node2.Icon:SetImage(luapad.ToIcon("box"))
+  node2.AddNode = pNode.AddNode
 
-  local node2 = luapad.OpenTree:AddNode("garrysmod\\gamemodes"); -- TODO: luapad.CreateFolder() function for this
+  local node2 = luapad.OpenTree:AddNode("garrysmod/gamemodes"); -- TODO: luapad.CreateFolder() function for this
   node2.RootFolder = "gamemodes"
   node2:MakeFolder("gamemodes", "GAME", true)
-  node2.Icon:SetImage("icon16/folder_page_white.png")
-  node2.AddNode = node.AddNode
+  node2.Icon:SetImage(luapad.ToIcon("folder_page_white"))
+  node2.AddNode = pNode.AddNode
 ]]
 end
 
@@ -613,7 +657,7 @@ function luapad.SaveScript()
     luapad.SaveAsScript()
   else
     if (table.HasValue(
-      luapad.RestrictedFiles,
+      RESTRICTED_FILES_LIST,
       pTab.path .. pTab.name
     )) then
       luapad.SetStatus("Save failed! (this file is marked as restricted)", Color(205, 72, 72, 255))
@@ -638,7 +682,7 @@ function luapad.SaveAsScript()
     pTab:GetPanel().path .. pTab:GetPanel().name,
 
     function(filename)
-      if (table.HasValue(luapad.RestrictedFiles, filename)) then
+      if (table.HasValue(RESTRICTED_FILES_LIST, filename)) then
         luapad.SetStatus("Save failed! (this file is marked as restricted)", Color(205, 72, 72, 255))
         return
       end
