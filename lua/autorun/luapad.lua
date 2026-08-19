@@ -286,9 +286,9 @@ function luapad.SaveTabs()
   local tI = luapad.PropertySheet:GetItems()
   for iD = 1, #tI do
     local tP = tI[iD]
-    local tS = tP.Tab[APP_PANL_STORKY]
-    tO[1], tO[2] = tS.Name , tS.Path
-    tO[3], tO[4] = tS.Label, tS.Icon
+    local vT = tP.Tab:GetStore()
+    tO[1], tO[2] = vT.Name , vT.Path
+    tO[3], tO[4] = vT.Label, vT.Icon
     table.insert(tW, table.concat(tO, APP_BASE_DELIMS))
   end
   file.Write(APP_BASE_FOLDER.."_savedtabs.txt", table.concat(tW, "\n"))
@@ -309,110 +309,119 @@ function luapad.Toggle()
     return
   end
 
-  if (not luapad.Frame) then
-
-    -- Build it, if it doesn't exist
-    luapad.Frame = vgui.Create("DFrame")
-    luapad.Frame:SetSize(ScrW() * 2 / 3, ScrH() * 2 / 3)
-    luapad.Frame:SetPos(ScrW() * 1 / 6, ScrH() * 1 / 6)
-    luapad.Frame:SetTitle("Luapad")
-    luapad.Frame:ShowCloseButton(true)
-    luapad.Frame:MakePopup()
-    function luapad.Frame:OnClose()
-      luapad.Toggle()
-      luapad.SaveTabs()
-    end -- Thanks Microosoft -SparkZ
-
-    luapad.Toolbar = vgui.Create("DIconLayout", luapad.Frame)
-    luapad.Toolbar:SetPos(3, 26)
-    luapad.Toolbar:SetSize(luapad.Frame:GetWide() - 6, 22)
-    luapad.Toolbar:SetSpacing(5)
-    luapad.Toolbar:EnableHorizontal(true)
-    luapad.Toolbar:EnableVerticalScrollbar(false)
-    function luapad.Toolbar:PerformLayout()
-      local Wide = self:GetWide()
-      local YPos = 3
-
-      if (not self.Rebuild) then
-        debug.Trace()
-      end
-
-      self:Rebuild()
-
-      if (self.VBar and not m_bSizeToContents) then
-        self.VBar:SetPos(self:GetWide() - 16, 0)
-        self.VBar:SetSize(16, self:GetTall())
-        self.VBar:SetUp(self:GetTall(), self.pnlCanvas:GetTall())
-        YPos = self.VBar:GetOffset() + 3
-        if (self.VBar.Enabled) then
-          Wide = Wide - 16
-        end
-      end
-
-      self.pnlCanvas:SetPos(3, YPos)
-      self.pnlCanvas:SetWide(Wide)
-
-      self:Rebuild()
-
-      if (self:GetAutoSize()) then
-        self:SetTall(self.pnlCanvas:GetTall())
-        self.pnlCanvas:SetPos(3, 3)
-      end
-    end
-
-    local x, y = luapad.Toolbar:GetPos()
-    luapad.PropertySheet = vgui.Create("DPropertySheet", luapad.Frame)
-    luapad.PropertySheet:SetPos(3, y + luapad.Toolbar:GetTall() + 5)
-    luapad.PropertySheet:SetSize(luapad.Frame:GetWide() - 6, luapad.Frame:GetTall() - 82)
-    luapad.PropertySheet:SetPadding(1)
-    luapad.PropertySheet:SetFadeTime(0)
-    function luapad.PropertySheet:OnActiveTabChanged(oT, nT)
-      luapad.Frame:SetTitle("Luapad - " .. pTab.Path .. pTab.Name)
-    end
-
-    luapad.PropertySheet:InvalidateLayout()
-
-    if (file.Exists(APP_BASE_FOLDER.."_savedtabs.txt", "DATA")) then
-      luapad.LoadTabs()
-    elseif (file.Exists(APP_BASE_FOLDER.."_welcome.txt", "DATA")) then
-      luapad.AddTab("_welcome.txt", file.Read(APP_BASE_FOLDER.."_welcome.txt", "DATA"), "data/"..APP_BASE_FOLDER)
-    else
-      luapad.NewTab()
-    end
-
-    luapad.Statusbar = vgui.Create("DIconLayout", luapad.Frame)
-    luapad.Statusbar:SetPos(3, luapad.Frame:GetTall() - 25)
-    luapad.Statusbar:SetSize(luapad.Frame:GetWide() - 6, 22)
-    luapad.Statusbar:SetSpacing(5)
-    luapad.Statusbar:EnableHorizontal(true)
-    luapad.Statusbar:EnableVerticalScrollbar(false)
-    luapad.Statusbar.PerformLayout = luapad.Toolbar.PerformLayout
-    luapad.Statusbar:InvalidateLayout()
-
-    luapad.AddToolbarItem("New (CTRL + N)", luapad.ToIcon("page_white_add"), luapad.NewTab)
-    luapad.AddToolbarItem("Open (CTRL + O)", luapad.ToIcon("folder_page_white"), luapad.OpenScript)
-    luapad.AddToolbarItem("Save (CTRL + S)", luapad.ToIcon("disk"), luapad.SaveScript)
-    luapad.AddToolbarItem("Save As (CTRL + ALT + S)", luapad.ToIcon("disk_multiple"), luapad.SaveAsScript)
-    luapad.AddToolbarSpacer()
-    luapad.AddToolbarItem("Close tab", luapad.ToIcon("page_white_delete"), luapad.CloseActiveTab)
-    luapad.AddToolbarItem(
-      "Run script", luapad.ToIcon("page_white_go"), function()
-        local menu = DermaMenu()
-        menu:AddOption("Client", luapad.RunScriptClient)
-        menu:AddOption("Server", luapad.RunScriptServer)
-        menu:AddOption(
-          "Shared", function()
-            luapad.RunScriptClient()
-            luapad.RunScriptServer()
-          end
-        )
-        menu:AddOption("Broadcast", luapad.RunScriptServerClient)
-        menu:Open()
-      end
-    )
-  else
+  if (luapad.Frame) then
     luapad.Frame:SetVisible(not luapad.Frame:IsVisible())
+    return
   end
+
+  -- Build it, if it doesn't exist
+  luapad.Frame = vgui.Create("DFrame")
+  luapad.Frame:SetSize(ScrW() * 2 / 3, ScrH() * 2 / 3)
+  luapad.Frame:SetPos(ScrW() * 1 / 6, ScrH() * 1 / 6)
+  luapad.Frame:SetTitle("Luapad")
+  luapad.Frame:ShowCloseButton(true)
+  luapad.Frame:MakePopup()
+  function luapad.Frame:OnClose()
+    luapad.Toggle()
+    luapad.SaveTabs()
+  end -- Thanks Microosoft -SparkZ
+
+  luapad.Toolbar = vgui.Create("DIconLayout", luapad.Frame)
+  luapad.Toolbar:SetPos(3, 26)
+  luapad.Toolbar:SetSize(luapad.Frame:GetWide() - 6, 22)
+  luapad.Toolbar:SetSpacing(5)
+  luapad.Toolbar:EnableHorizontal(true)
+  luapad.Toolbar:EnableVerticalScrollbar(false)
+  function luapad.Toolbar:PerformLayout()
+    local Wide = self:GetWide()
+    local YPos = 3
+
+    if (not self.Rebuild) then
+      debug.Trace()
+    end
+
+    self:Rebuild()
+
+    if (self.VBar and not m_bSizeToContents) then
+      self.VBar:SetPos(self:GetWide() - 16, 0)
+      self.VBar:SetSize(16, self:GetTall())
+      self.VBar:SetUp(self:GetTall(), self.pnlCanvas:GetTall())
+      YPos = self.VBar:GetOffset() + 3
+      if (self.VBar.Enabled) then
+        Wide = Wide - 16
+      end
+    end
+
+    self.pnlCanvas:SetPos(3, YPos)
+    self.pnlCanvas:SetWide(Wide)
+
+    self:Rebuild()
+
+    if (self:GetAutoSize()) then
+      self:SetTall(self.pnlCanvas:GetTall())
+      self.pnlCanvas:SetPos(3, 3)
+    end
+  end
+
+  local x, y = luapad.Toolbar:GetPos()
+  luapad.PropertySheet = vgui.Create("DPropertySheet", luapad.Frame)
+  luapad.PropertySheet:SetPos(3, y + luapad.Toolbar:GetTall() + 5)
+  luapad.PropertySheet:SetSize(luapad.Frame:GetWide() - 6, luapad.Frame:GetTall() - 82)
+  luapad.PropertySheet:SetPadding(1)
+  luapad.PropertySheet:SetFadeTime(0)
+  function luapad.PropertySheet:OnActiveTabChanged(oT, nT)
+    local vT = nT:GetStore()
+    luapad.Frame:SetTitle("Luapad - " .. vT.Path .. vT.Name)
+  end
+  function luapad.PropertySheet:GetActiveTabID()
+    local tT = luapad.PropertySheet:GetItems()
+    local aT = luapad.PropertySheet:GetActiveTab()
+    if(not IsValid(aT)) then return nil end
+    for iT = 1, #tT do local tP = tT[iT]
+      if(aT == tP.Tab) then return iT, aT end
+    end; return nil
+  and
+
+  luapad.PropertySheet:InvalidateLayout()
+
+  if (file.Exists(APP_BASE_FOLDER.."_savedtabs.txt", "DATA")) then
+    luapad.LoadTabs()
+  elseif (file.Exists(APP_BASE_FOLDER.."_welcome.txt", "DATA")) then
+    luapad.AddTab("_welcome.txt", file.Read(APP_BASE_FOLDER.."_welcome.txt", "DATA"), "data/"..APP_BASE_FOLDER)
+  else
+    luapad.NewTab()
+  end
+
+  luapad.Statusbar = vgui.Create("DIconLayout", luapad.Frame)
+  luapad.Statusbar:SetPos(3, luapad.Frame:GetTall() - 25)
+  luapad.Statusbar:SetSize(luapad.Frame:GetWide() - 6, 22)
+  luapad.Statusbar:SetSpacing(5)
+  luapad.Statusbar:EnableHorizontal(true)
+  luapad.Statusbar:EnableVerticalScrollbar(false)
+  luapad.Statusbar.PerformLayout = luapad.Toolbar.PerformLayout
+  luapad.Statusbar:InvalidateLayout()
+
+  luapad.AddToolbarItem("New (CTRL + N)", luapad.ToIcon("page_white_add"), luapad.NewTab)
+  luapad.AddToolbarItem("Open (CTRL + O)", luapad.ToIcon("folder_page_white"), luapad.OpenScript)
+  luapad.AddToolbarItem("Save (CTRL + S)", luapad.ToIcon("disk"), luapad.SaveScript)
+  luapad.AddToolbarItem("Save As (CTRL + ALT + S)", luapad.ToIcon("disk_multiple"), luapad.SaveAsScript)
+  luapad.AddToolbarSpacer()
+  luapad.AddToolbarItem("Close tab", luapad.ToIcon("page_white_delete"), luapad.CloseActiveTab)
+  luapad.AddToolbarItem(
+    "Run script", luapad.ToIcon("page_white_go"), function()
+      local menu = DermaMenu()
+      menu:AddOption("Client", luapad.RunScriptClient)
+      menu:AddOption("Server", luapad.RunScriptServer)
+      menu:AddOption(
+        "Shared", function()
+          luapad.RunScriptClient()
+          luapad.RunScriptServer()
+        end
+      )
+      menu:AddOption("Broadcast", luapad.RunScriptServerClient)
+      menu:Open()
+    end
+  )
 end
 
 function luapad.AddToolbarItem(tooltip, mat, func1, func2)
@@ -430,7 +439,7 @@ function luapad.AddToolbarSpacer()
   local pLab = vgui.Create("DLabel")
   if(not IsValid()pLab) then return end
 
-  pLab:SetText(" | ")
+  pLab:SetText(" "..APP_BASE_DELIMS.." ")
   pLab:SizeToContents()
   luapad.Toolbar:AddItem(pLab)
 end
@@ -469,12 +478,19 @@ function luapad.CloseTab(name, label)
   local pSheet = luapad.PropertySheet
   if(not IsValid(pSheet)) then return end
 
-  local tItems = pSheet:GetItems()
+  local tI = pSheet:GetItems()
   local sName  = tostring(label or name)
 
-  for iD = 1, #tItems do local v = tItems[iD] -- The context menu option is available
-    if(v and v.Name and v.Name:find(sName, 1, true)) then
-      pSheet:CloseTab(v.Tab); v.Tab:Remove(); v.Panel:Remove()
+  -- The context menu option is available
+  for iD = 1, #tI do
+    local tP = tI[iD]
+    local vT = tP.Tab:GetStore()
+    if(vT.Label and vT.Label:find(sName, 1, true)) then
+      pSheet:CloseTab(tP.Tab, true)
+      break
+    end
+    if(vT.Name and vT.Name:find(sName, 1, true)) then
+      pSheet:CloseTab(tP.Tab, true)
       break
     end
   end; pSheet:InvalidateLayout()
@@ -490,24 +506,29 @@ function luapad.AddTab(name, content, path, label, icon)
   local pSheet = luapad.PropertySheet
   if(not IsValid(pSheet)) then return end
 
-  local pForm = vgui.Create("DScrollPanel", pSheet)
-  pForm:SetSize(pSheet:GetWide(), pSheet:GetTall() - 23)
+  local pPan = vgui.Create("DScrollPanel", pSheet)
+  pPan:SetSize(pSheet:GetWide(), pSheet:GetTall() - 23)
 
-  local pText = vgui.Create("LuapadEditor", pForm)
+  local pText = vgui.Create("LuapadEditor", pPan)
   pText:Dock(FILL)
-  pText:SetText(content or "")
+  pText:SetText(content)
   pText:RequestFocus()
 
-  pForm:AddItem(pText)
+  pPan:AddItem(pText)
 
-  local tInfo = pSheet:AddSheet(tostring(label or name), pForm, luapad.ToIcon(icon), false, false)
+  local tInfo = pSheet:AddSheet(tostring(label or name), pPan, luapad.ToIcon(icon), false, false)
   local pTab  = tInfo.Tab
         pTab[APP_PANL_STORKY] = {}
+        pTab[APP_PANL_STORKY].Text  = pText
         pTab[APP_PANL_STORKY].Name  = name
         pTab[APP_PANL_STORKY].Path  = path
         pTab[APP_PANL_STORKY].Label = label
         pTab[APP_PANL_STORKY].Icon  = icon
         pTab:SetTooltip(path .. name)
+
+  function pTab:GetStore()
+    return self[APP_PANL_STORKY]
+  end
 
   pSheet:SetActiveTab(tInfo.Tab)
   pSheet:InvalidateLayout()
@@ -525,12 +546,12 @@ function luapad.IsOpen(name, path)
   local tI = luapad.PropertySheet:GetItems()
   for iD = 1, #tI do
     local tP = tI[iD]
-    local tS = tP.Tab[APP_PANL_STORKY]
+    local vT = tP.Tab:GetStore()
     if(path ~= "") then
-      tC[1], tC[2] = tS.Path, tS.Name
+      tC[1], tC[2] = vT.Path, vT.Name
       if(table.concat(tC) == name) then return true end
     else
-      if(tS.Name == name) then return true end
+      if(vT.Name == name) then return true end
     end
   end; return false
 end
@@ -554,17 +575,28 @@ function luapad.CloseActiveTab()
   local pSheet = luapad.PropertySheet
   if(not IsValid(pSheet)) then return end
 
-  if (#pSheet.Items == 1) then
+  local nT = #pSheet.Items
+
+  if(nT == 0) then
+    return
+  if(nT == 1) then
     pSheet:SetActiveTab(pSheet.Items[1].Tab)
     return
+  else
+    local iT, aT = pSheet:GetActiveTabID()
+
+    if(not IsValid(aT)) then return end
+    if(not iT) then return end
+
+    if(iT == 1) then
+      pSheet:SetActiveTab(pSheet.Items[2].Tab)
+    else
+      pSheet:SetActiveTab(pSheet.Items[iT - 1].Tab)
+    end
+
+    aT:CloseTab(aT, true)
+    pSheet:InvalidateLayout()
   end
-
-  local pTab = pSheet:GetActiveTab()
-  if(not IsValid(pTab)) then return end
-
-  pTab:CloseTab(pTab, true)
-
-  pSheet:InvalidateLayout()
 end
 
 function luapad.OpenScript()
@@ -572,21 +604,25 @@ function luapad.OpenScript()
     luapad.OpenTree:Remove()
   end
 
+  local w = luapad.PropertySheet:GetWide()
+  local h = luapad.PropertySheet:GetTall()
   local x, y = luapad.PropertySheet:GetPos()
   luapad.OpenTree = vgui.Create("DTree", luapad.Frame)
   luapad.OpenTree:SetPadding(5)
-  luapad.OpenTree:SetPos(x + (luapad.PropertySheet:GetWide() - luapad.PropertySheet:GetWide() / 4), y + 22)
-  luapad.OpenTree:SetSize(luapad.PropertySheet:GetWide() / 4, luapad.PropertySheet:GetTall() - 23)
+  luapad.OpenTree:SetPos(x + (w - w / 4), y + 22)
+  luapad.OpenTree:SetSize(w / 4, h - 23)
 
   function luapad.OpenTree:DoClick()
     local pNode = luapad.OpenTree:GetSelectedItem()
-    local tPath = string.Explode(".", pNode.Label:GetValue())
+    local sPath = pNode.Label:GetValue()
+    local tPath = string.Explode(".", sPath)
     local nPath = #tPath
 
     if (nPath ~= 1 and (tPath[nPath] == "txt")) then
+
       Msg(pNode.Path)
       luapad.AddTab(
-        pNode.Label:GetValue(), file.Read((string.gsub(pNode.Path, "data/", "") .. pNode.Label:GetValue()), "DATA"),
+        sPath, file.Read((string.gsub(pNode.Path, "^data/", "") .. sPath), "DATA"),
         pNode.Path
       )
       luapad.OpenTree:Remove()
@@ -692,28 +728,34 @@ function luapad.OpenScript()
 end
 
 function luapad.SaveScript()
-  local pTab = luapad.PropertySheet:GetActiveTab():GetPanel()
-  local contents = pTab:GetItems()[1]:GetValue() or ""
-  contents = string.gsub(contents, "   	", "\t")
-  local path = string.gsub(pTab.path, "data/", "", 1)
+  local pTab = luapad.PropertySheet:GetActiveTab()
+  if(not IsValid(pTab)) then return end
+
+  local pPan = pTab:GetPanel()
+  if(not IsValid(pPan)) then return end
+
+  local vT = pTab:GetStore()
+  local sCon = pPan:GetItems()[1]:GetValue() or ""
+        sCon = string.gsub(sCon, "   	", "\t")
+  local path = string.gsub(vT.Path, "^data/", "")
   local a = 0
 
-  Msg("data/" .. path .. pTab.name)
+  Msg("data/" .. path .. vT.Name)
 
-  if (not file.Exists(path .. pTab.name, "DATA")) then
+  if (not file.Exists(path .. vT.Name, "DATA")) then
     luapad.SaveAsScript()
   else
     if (table.HasValue(
       RESTRICTED_FILES_LIST,
-      pTab.path .. pTab.name
+      vT.path .. vT.Name
     )) then
       luapad.SetStatus("Save failed! (this file is marked as restricted)", "SAVE_ER")
       return
     end
 
-    file.Write(path .. pTab.name, contents)
+    file.Write(path .. vT.Name, sCon)
 
-    if file.Exists(path .. pTab.name, "DATA") then
+    if file.Exists(path .. vT.Name, "DATA") then
       luapad.SetStatus("File successfully saved!", "SAVE_OK")
     else
       luapad.SetStatus("Save failed! (check your filename for illegal characters)", "SAVE_ER")
@@ -723,17 +765,20 @@ end
 
 function luapad.SaveAsScript()
   local pTab = luapad.PropertySheet:GetActiveTab()
+  if(not IsValid(pTab)) then return end
+
+  local vT = pTab:GetStore()
 
   Derma_StringRequest(
     "Luapad", "You are about to save a file, please enter the desired filename.",
-    pTab[APP_PANL_STORKY].Path .. pTab[APP_PANL_STORKY].Name,
+    vT.Path .. vT.Name,
 
     function(sName)
       if (table.HasValue(RESTRICTED_FILES_LIST, sName)) then
         luapad.SetStatus("Save failed! (this file is marked as restricted)", "SAVE_ER")
         return
       end
-      local contents = pTab:GetPanel():GetItems()[1]:GetValue() or ""
+      local sText = pTab:GetPanel():GetItems()[1]:GetValue() or ""
 
       if string.find(sName, "../") == 1 then
         sName = string.gsub(sName, "../", "", 1)
@@ -741,13 +786,13 @@ function luapad.SaveAsScript()
 
       file.CreateDir(string.gsub(sName, "^data/", "", 1))
 
-      file.Write(string.gsub(sName, "^data/", "", 1), contents)
+      file.Write(string.gsub(sName, "^data/", "", 1), sText)
 
       if file.Exists(string.gsub(sName, "data/", "", 1), "DATA") then
         luapad.SetStatus("File successfully saved!", "SAVE_OK")
-        pTab[APP_PANL_STORKY].Name = string.GetFileFromFilename(sName)
-        pTab[APP_PANL_STORKY].Path = string.GetPathFromFilename(sName)
-        pTab:SetText(pTab[APP_PANL_STORKY].Name)
+        vT.Name = string.GetFileFromFilename(sName)
+        vT.Path = string.GetPathFromFilename(sName)
+        pTab:SetText(vT.Name)
         luapad.PropertySheet:SetActiveTab(pTab)
       else
         luapad.SetStatus("Save failed! (check your filename for illegal characters)", "SAVE_ER")
