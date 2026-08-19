@@ -16,6 +16,7 @@ luapad.OpenFiles = {}
 
 local APP_BASE_DELIMS = "|"
 local APP_BASE_FOLDER = "luapad/"
+local APP_ICON_FORMAT = "icon16/%s.png"
 local APP_BASE_FMNAME = "untitled%d.txt"
 local APP_PANL_STORKY = "gmod_luapad"
 
@@ -72,81 +73,86 @@ if (SERVER) then
     AddCSLuaFile("autorun/luapad_editor.lua")
   end
 
-  local content = table.concat({
-    "-- This is an automatically generated cache file for server-side\n"
-    "-- The content includes global functions, meta-tables, and enumerations\n",
-    "-- Don't touch it, or you'll probably mess up your syntax highlighting",
-    "\n\nluapad._sG = {};\n"
-  })
+  if(not file.Exists(APP_BASE_FOLDER.."_server_globals.txt" "DATA")) then
 
-  local endcontent = ""
+    local fSin = file.Open(APP_BASE_FOLDER.."_server_globals.txt", "wb", "DATA")
 
-  for k, v in pairs(_G) do
-    local typev = type(v)
-    if (typev == "function" or typev == "table") then
-      if (typev == "function") then
-        content = content .. FMT_SYNTAX_HIGHLIGHT.V:format(k, "f") .. "\n"
-      else
-        local hasfunc = false
-        for k, v in pairs(v) do
-          if (typev == "function") then
-            hasfunc = true
-            break
+    if(fSin) then
+
+      local tMeta = {}
+
+      fSin:Write("-- This is an automatically generated cache file for server-side\n")
+      fSin:Write("-- The content includes global functions, meta-tables, and enumerations\n")
+      fSin:Write("-- Don't touch it, or you'll probably mess up your syntax highlighting\n")
+      fSin:Write("\nluapad._sG = {};\n")
+
+      for k, v in pairs(_G) do
+        local typev = type(v)
+        if (typev == "function") then
+          fSin:Write(FMT_SYNTAX_HIGHLIGHT.V:format(k, "f"))
+          fSin:Write("\n")
+        elseif (typev == "table")
+          local hasfunc = false
+          for k1, v1 in pairs(v) do
+            if (type(v1) == "function") then
+              hasfunc = true
+              break
+            end
           end
-        end
 
-        if (hasfunc) then
-          content = content .. FMT_SYNTAX_HIGHLIGHT.T:format(k) .. "\n"
-          for k2, v2 in pairs(v) do
-            if (type(v2) == "function") then
-              endcontent = endcontent .. FMT_SYNTAX_HIGHLIGHT.D:format(k, k2, "f") .. "\n"
+          if (hasfunc) then
+            fSin:Write(FMT_SYNTAX_HIGHLIGHT.T:format(k))
+            fSin:Write("\n")
+            for k2, v2 in pairs(v) do
+              if (type(v2) == "function") then
+                fSin:Write(FMT_SYNTAX_HIGHLIGHT.D:format(k, k2, "f"))
+                fSin:Write("\n")
+              end
             end
           end
         end
       end
-    end
-  end
 
-  content = content .. endcontent
+      fSin:Write("\n\n-- Enumerations\n\n")
 
-  local content = content .. "\n\n-- Enumerations\n\n"
-
-  if (_E) then
-    for k, v in pairs(_E) do
-      local typev = type(v)
-      if ((typev ~= "function" or typev ~= "table") and string.upper(k) == k) then
-        content = content .. FMT_SYNTAX_HIGHLIGHT.V:format(k, "e") .. "\n"
-      end
-    end
-  end
-
-  local content = content .. "\n\n-- Meta-tables\n\n"
-
-  for k, v in pairs(debug.getregistry()) do
-    local typev = type(v)
-    if (typev == "table") then
-      local hasfunc = false
-      for k, v in pairs(v) do
-        if (typev == "function") then
-          hasfunc = true
-          break
-        end
-      end
-
-      if (hasfunc) then
-        for k2, v2 in pairs(v) do
-          local row = FMT_SYNTAX_HIGHLIGHT:V:format(k2, "m")
-          if (type(v2) == "function" and not string.find(content, row)) then
-            content = content .. row .. "\n"
+      if (_E) then
+        for k, v in pairs(_E) do
+          local typev = type(v)
+          if ((typev ~= "function" or typev ~= "table") and string.upper(k) == k) then
+            fSin:Write(FMT_SYNTAX_HIGHLIGHT.V:format(k, "e"))
+            fSin:Write("\n")
           end
         end
       end
+
+      fSin:Write("\n\n-- Meta-tables\n\n")
+
+      for k, v in pairs(debug.getregistry()) do
+        if (type(v) == "table") then
+          local hasfunc = false
+          for k1, v1 in pairs(v) do
+            if (type(v1) == "function") then
+              hasfunc = true
+              break
+            end
+          end
+
+          if (hasfunc) then
+            for k2, v2 in pairs(v) do
+              if (type(v2) == "function" and not tMeta[k2]) then
+                fSin:Write(FMT_SYNTAX_HIGHLIGHT:V:format(k2, "m"))
+                fSin:Write("\n")
+              end
+            end
+          end
+        end
+      end
+
+      fSin:Flush(); fSin:Close()
+      resource.AddFile("data/"..APP_BASE_FOLDER.."_server_globals.txt")
     end
   end
 
-  file.Write(APP_BASE_FOLDER.."_server_globals.txt", content)
-
-  resource.AddFile("data/"..APP_BASE_FOLDER.."_server_globals.txt")
   resource.AddFile("data/"..APP_BASE_FOLDER.."_welcome.txt")
   resource.AddFile("data/"..APP_BASE_FOLDER.."_about.txt")
 
@@ -218,7 +224,7 @@ function luapad.About()
 end
 
 function luapad.ToIcon(sIco)
-  return ("icon16/%s.png"):format(tostring(sIco))
+  return APP_ICON_FORMAT:format(tostring(sIco))
 end
 
 function luapad.CheckGlobal(func)
