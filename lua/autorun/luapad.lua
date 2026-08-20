@@ -44,11 +44,13 @@ local ACCEPTED_STEAMS = {
   ["luapad.UploadClient"] = true
 }
 
+-- https://heyter.github.io/js-famfamfam-search/
 local ENABLE_FOLDER = {
-  ["garrysmod/data"     ] = true,
-  ["garrysmod/lua"      ] = true,
-  ["garrysmod/addons"   ] = true,
-  ["garrysmod/gamemodes"] = true
+  ["data"     ] = {Icon = "table_save", Exco = {"txt" = true, "sql" = true,"lua" = true}},
+  ["lua"      ] = {Icon = "page_code" , Exco = {"txt" = true, "sql" = true,"lua" = true}},
+  ["addons"   ] = {Icon = "package"   , Exco = {"txt" = true, "sql" = true,"lua" = true}},
+  ["download" ] = {Icon = "transmit"  , Exco = {"txt" = true, "sql" = true,"lua" = true}},
+  ["gamemodes"] = {Icon = "joystick"  , Exco = {"txt" = true, "sql" = true,"lua" = true}}
 }
 
 local RESTRICTED_FILES = {
@@ -87,8 +89,8 @@ if (SERVER) then
   util.AddNetworkString("luapad.UploadClientCallback")
   util.AddNetworkString("luapad.DownloadRunClient")
 
-  CreateConVar("luapad_adminonly", 1, {FCVAR_REPLICATED, FCVAR_ARCHIVE})
   -- They can still do cs lua if you don't have 'sv_allowcslua 0'!!!
+  CreateConVar("luapad_adminonly", 1, bit.bor(FCVAR_REPLICATED, FCVAR_ARCHIVE))
 
   if (luapad.forcedownload) then
     AddCSLuaFile("autorun/luapad.lua")
@@ -706,6 +708,7 @@ function luapad.OpenScript()
   local h = luapad.PropertySheet:GetTall()
   local x, y = luapad.PropertySheet:GetPos()
   luapad.OpenTree = vgui.Create("DTree", luapad.Frame)
+
   luapad.OpenTree:SetPadding(5)
   luapad.OpenTree:SetPos(x + (w - w / 4), y + 22)
   luapad.OpenTree:SetSize(w / 4, h - 23)
@@ -727,6 +730,39 @@ function luapad.OpenScript()
     end
   end
 
+  function luapad.OpenTree:PopulateNode(pNode, sPath, tConf)
+    local tF, tD = file.Find(sPath .. "/*", "GAME", "nameasc")
+    -- Folders
+    for iD = 1, #tD do
+      local sD = tD[iD]
+      local pC = pNode:AddNode(sD, "icon16/folder.png")
+      self:PopulateNode(pC, sPath .. "/" .. sD, tConf)
+    end
+    -- Files
+    for iF = 1, #tF do
+      local sF = tF[iF]
+      local sE = string.GetExtensionFromFilename(sF)
+      if(tConf.Exco[sE]) then
+        local pC = pNode:AddNode(sF, "icon16/page.png")
+        pC.FilePath = sPath .. "/" .. sF
+        pC.IsFile = true
+      end
+    end
+  end
+
+  function luapad.OpenTree:PopulateTree(sName, sIco)
+    local pRoot = self:AddNode(sName)
+
+    if (not IsValid(pRoot)) then return end
+    if (not ENABLE_FOLDER[sName]) then return end
+
+    local tConf = ENABLE_FOLDER[sName]
+
+    pRoot:SetImage(luapad.ToIcon((sIco or tConf.Icon) or "computer"))
+
+    self:PopulateNode(pRoot, sName, tConf)
+  end
+
   luapad.OpenCloseButton = vgui.Create("DButton", luapad.OpenTree)
   luapad.OpenCloseButton:SetSize(16, 16)
   luapad.OpenCloseButton:SetPos(luapad.OpenTree:GetWide() - 20, 4)
@@ -737,92 +773,11 @@ function luapad.OpenScript()
     luapad.OpenTree:Remove()
   end
 
-  local pNode = luapad.OpenTree:AddNode("garrysmod/data"); -- TODO: luapad.CreateFolder() function for this
-  pNode.RootFolder = "data"
-  pNode:MakeFolder("data", "GAME", true)
-  pNode.Icon:SetImage(luapad.ToIcon("computer"))
-
-  function pNode:AddNode(sName)
-    self:CreateChildNodes()
-
-    local pNode = vgui.Create("DTree_Node", self)
-    pNode:SetText(sName)
-    pNode:SetParentNode(self)
-    pNode:SetRoot(self:GetRoot())
-    pNode.AddNode = self.AddNode
-    pNode.Folder = pNode:GetParentNode()
-    pNode.Path = ""
-
-    local pFolder = pNode.Folder
-    local sPath = pFolder.Label:GetValue()
-
-    -- TODO: luapad.CreateFolder() function for this
-    while (pFolder) do
-      if (pFolder.Label) then
-        if (not ENABLE_FOLDER[sPath] and sPath ~= "") then
-          pNode.Path = pFolder.Label:GetValue() .. "/" .. pNode.Path
-        end -- Don't really know what I'm doing here, but it seems to work...
-      else
-        break
-      end
-
-      pFolder = pFolder:GetParentNode()
-    end
-
-    local pFolder = pNode.Folder
-    local sRoot = self.RootFolder
-
-    while (pFolder and not sRoot) do
-      if (pFolder.RootFolder) then
-        sRoot = pFolder.RootFolder
-        break
-      end
-
-      pFolder = pFolder:GetParentNode()
-    end
-
-    pNode.Path = sRoot .. "/" .. pNode.Path
-
-    if (table.HasValue(RESTRICTED_FILES, pNode.Path .. pNode.Label:GetValue())) then
-      pNode:Remove()
-      return
-    end
-
-    local tName = string.Explode(".", sName)
-    local eName = tName[#tName]
-
-    if (eName == sName) then
-      pNode.Icon:SetImage(luapad.ToIcon("folder"))
-    elseif (eName == "txt") then
-      pNode.Icon:SetImage(luapad.ToIcon("page_white"))
-    else
-      pNode.Icon:SetImage(luapad.ToIcon("page_white_delete"))
-    end
-
-    self.ChildNodes:Add(pNode)
-    self:InvalidateLayout()
-    return pNode
-  end
-
-  --[[--Some weird shit is happening with these, so don't really care unless people really need them...
-  local node2 = luapad.OpenTree:AddNode("garrysmod/lua"); -- TODO: luapad.CreateFolder() function for this
-  node2.RootFolder = "lua"
-  node2:MakeFolder("lua", "GAME", true)
-  node2.Icon:SetImage(luapad.ToIcon("folder_page_white.png"))
-  node2.AddNode = pNode.AddNode
-
-  local node2 = luapad.OpenTree:AddNode("garrysmod/addons"); -- TODO: luapad.CreateFolder() function for this
-  node2.RootFolder = "addons"
-  node2:MakeFolder("addons", "GAME", true)
-  node2.Icon:SetImage(luapad.ToIcon("box"))
-  node2.AddNode = pNode.AddNode
-
-  local node2 = luapad.OpenTree:AddNode("garrysmod/gamemodes"); -- TODO: luapad.CreateFolder() function for this
-  node2.RootFolder = "gamemodes"
-  node2:MakeFolder("gamemodes", "GAME", true)
-  node2.Icon:SetImage(luapad.ToIcon("folder_page_white"))
-  node2.AddNode = pNode.AddNode
-]]
+  luapad.OpenTree:PopulateTree("data"     )
+  luapad.OpenTree:PopulateTree("lua"      )
+  luapad.OpenTree:PopulateTree("addons"   )
+  luapad.OpenTree:PopulateTree("download" )
+  luapad.OpenTree:PopulateTree("gamemodes")
 end
 
 function luapad.SaveScript()
