@@ -21,7 +21,7 @@ local BASE_DELIMS = "|"
 local BASE_FOLDER = "luapad/"
 local ICON_FORMAT = "icon16/%s.png"
 local BASE_FMNAME = "untitled%d.txt"
-local PANL_STORKY = "gmod_luapad"
+local PANEL_STORKY = "gmod_luapad"
 local DEBG_FORMAT = "Found routine [%s] in %s"
 
 local COLOR_STATUS = {
@@ -482,31 +482,63 @@ end
 
 function luapad.CloseTabLeft(pTab, bInc)
   if(not IsValid(pTab)) then return end
-  local pS = pTab:GetPropertySheet()
+  local pS = luapad.PropertySheet
+  if(not IsValid(pS)) then return end
+  local iT = pS:GetTabIndex(pTab)
+  if(not iT) then return end
+  if(not bInc) then iT = iT - 1 end
   local tI = pS:GetItems()
-  local cT, iT = tI[1].Tab, #tI
-  while(tI[1] and pTab ~= cT and iT > 0) then
+  local cT, nT = tI[1].Tab, iT
+  while(tI[1] and IsValid(cT) and nT > 0) then
     pS:CloseTab(cT, true)
     cT = tI[1].Tab
-    iT = iT - 1
-  end
-  if(bInc) then
-    pS:CloseTab(pTab, true)
+    nT = nT - 1
   end
 end
 
 function luapad.CloseTabRight(pTab, bInc)
   if(not IsValid(pTab)) then return end
-  local pS = pTab:GetPropertySheet()
-  local nT = pS:GetTabIndex(pTab)
+  local pS = luapad.PropertySheet
+  if(not IsValid(pS)) then return end
+  local iT = pS:GetTabIndex(pTab)
+  if(not iT) then return end
   local tI = pS:GetItems()
-  local iT = (#tI - nT + 1)
-  local cT = tI[nT].Tab
-  if(not bInc) then nT = nT + 1 end
-  while(tI[nT] and IsValid(cT) and iT > 0) then
+  local nT = (#tI - iT + 1)
+  if(not bInc) then iT = iT + 1 end
+  local cT = tI[iT].Tab
+  while(tI[iT] and IsValid(cT) and nT > 0) then
     pS:CloseTab(cT, true)
-    cT = tI[nT].Tab
-    iT = iT - 1
+    cT = tI[iT].Tab
+    nT = nT - 1
+  end
+end
+
+function luapad.CloseActiveTab()
+  local pS = luapad.PropertySheet
+  if(not IsValid(pS)) then return end
+
+  local nT = #pS.Items
+
+  if(nT == 0) then
+    return
+  if(nT == 1) then
+    pS:SetActiveTab(pS.Items[1].Tab)
+    return
+  else
+    local aT = pS:GetActiveTab()
+    local iT = pS:GetTabIndex(aT)
+
+    if(not IsValid(aT)) then return end
+    if(not iT) then return end
+
+    if(iT == 1) then
+      pS:SetActiveTab(pS.Items[2].Tab)
+    else
+      pS:SetActiveTab(pS.Items[iT - 1].Tab)
+    end
+
+    aT:CloseTab(aT, true)
+    pS:InvalidateLayout()
   end
 end
 
@@ -515,10 +547,12 @@ function luapad.AddTab(name, content, path, label, icon)
   name    = tostring(name or "")
   content = tostring(content or "")
   icon    = tostring(icon or "page_white")
-  label   = ((label and label ~= "") and tostring(label) or nil)
+  label   = ((label ~= nil and label ~= "") and tostring(label) or nil)
 
   local pSheet = luapad.PropertySheet
   if(not IsValid(pSheet)) then return end
+
+  local tSkin = pSheet:GetSkin()
 
   local pPan = vgui.Create("DScrollPanel", pSheet)
   pPan:SetSize(pSheet:GetWide(), pSheet:GetTall() - 23)
@@ -528,20 +562,24 @@ function luapad.AddTab(name, content, path, label, icon)
   pText:SetText(content)
   pText:RequestFocus()
   pText:SizeToContents()
+  pText:UpdateColours(tSkin)
 
   pPan:AddItem(pText)
 
   local tInfo = pSheet:AddSheet(tostring(label or name), pPan, luapad.ToIcon(icon), false, false)
-  local pTab  = tInfo.Tab
-        pTab[PANL_STORKY] = {}
-        pTab[PANL_STORKY].Name  = name
-        pTab[PANL_STORKY].Path  = path
-        pTab[PANL_STORKY].Label = label
-        pTab[PANL_STORKY].Icon  = icon
-        pTab:SetTooltip(path .. name)
+  local pTab  = tInfo.Tab; pTab[PANEL_STORKY] = {}
+  local tSor  = pTab[PANEL_STORKY]
+
+  tSor.Name  = name
+  tSor.Path  = path
+  tSor.Label = label
+  tSor.Icon  = icon
+  tSor.Full  = path .. name
+
+  pTab:SetTooltip(tSor.Full)
 
   function pTab:GetStore()
-    return self[PANL_STORKY]
+    return self[PANEL_STORKY]
   end
 
   function pTab:GetText()
@@ -550,6 +588,14 @@ function luapad.AddTab(name, content, path, label, icon)
 
   function pTab:DoClick()
     self:GetPropertySheet():SetActiveTab(self)
+  end
+
+  function pTab:DoMiddleClick()
+    self:GetPropertySheet():CloseTab(self, true)
+  end
+
+  function pTab:DoDoubleClick()
+    -- Sublime and notepad do nothing here
   end
 
   function pTab:DoRightClick()
@@ -589,7 +635,7 @@ function luapad.AddTab(name, content, path, label, icon)
     local pIn, pOp = pMenu:AddSubMenu("Close")
     pOp:SetIcon(luapad.ToIcon("tab_delete"))
     pIn:AddOption("This", function()
-      self:GetPropertySheet():CloseTab(self)
+      self:GetPropertySheet():CloseTab(self, true)
     end):SetImage(luapad.ToIcon("arrow_down"))
     pIn:AddOption("Active", function()
       local pS = self:GetPropertySheet()
@@ -624,14 +670,12 @@ function luapad.IsOpen(name, path)
     name = path .. name
   end
 
-  local tC = {"", ""}
   local tI = luapad.PropertySheet:GetItems()
   for iD = 1, #tI do
     local tP = tI[iD]
     local vT = tP.Tab:GetStore()
     if(path ~= "") then
-      tC[1], tC[2] = vT.Path, vT.Name
-      if(table.concat(tC) == name) then return true end
+      if(vT.Full == name) then return true end
     else
       if(vT.Name == name) then return true end
     end
@@ -651,35 +695,6 @@ function luapad.NewTab(content)
   end
 
   luapad.AddTab(BASE_FMNAME:format(iF), content, "data/" .. BASE_FOLDER)
-end
-
-function luapad.CloseActiveTab()
-  local pSheet = luapad.PropertySheet
-  if(not IsValid(pSheet)) then return end
-
-  local nT = #pSheet.Items
-
-  if(nT == 0) then
-    return
-  if(nT == 1) then
-    pSheet:SetActiveTab(pSheet.Items[1].Tab)
-    return
-  else
-    local aT = pSheet:GetActiveTab()
-    local iT = pSheet:GetTabIndex(aT)
-
-    if(not IsValid(aT)) then return end
-    if(not iT) then return end
-
-    if(iT == 1) then
-      pSheet:SetActiveTab(pSheet.Items[2].Tab)
-    else
-      pSheet:SetActiveTab(pSheet.Items[iT - 1].Tab)
-    end
-
-    aT:CloseTab(aT, true)
-    pSheet:InvalidateLayout()
-  end
 end
 
 function luapad.OpenScript()
