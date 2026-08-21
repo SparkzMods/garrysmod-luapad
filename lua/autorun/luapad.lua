@@ -831,11 +831,8 @@ function luapad.SaveScript()
   local pTab = luapad.PropertySheet:GetActiveTab()
   if(not IsValid(pTab)) then return end
 
-  local pPan = pTab:GetPanel()
-  if(not IsValid(pPan)) then return end
-
   local vT = pTab:GetStore()
-  local sCon = pPan:GetItems()[1]:GetValue() or ""
+  local sCon = pTab:GetText() or ""
         sCon = string.gsub(sCon, "   	", "\t")
   local path = string.gsub(vT.Path, "^data/", "")
   local a = 0
@@ -878,7 +875,7 @@ function luapad.SaveAsScript()
         luapad.SetStatus("Save failed! (this file is marked as restricted)", "SAVE_ER")
         return
       end
-      local sText = pTab:GetPanel():GetItems()[1]:GetValue() or ""
+      local sText = pTab:GetText() or ""
 
       if string.find(sName, "../") == 1 then
         sName = string.gsub(sName, "../", "", 1)

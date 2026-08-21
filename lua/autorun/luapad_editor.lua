@@ -252,7 +252,7 @@ function luapad.EditorPanel:SetText(text)
   self.ScrollBar:SetUp(self.Size[1], #self.Rows - 1)
 end
 
-function luapad.EditorPanel:GetValue()
+function luapad.EditorPanel:GetText()
   return string.Implode("\n", self.Rows)
 end
 
@@ -293,14 +293,17 @@ function luapad.EditorPanel:SyntaxColorLine(row)
     end
 
     if (self.char >= "0" and self.char <= "9") then
-      while self.char and (self.char >= "0" and self.char <= "9" or self.char == "." or self.char == "_") do
+      while self.char and (self.char >= "0" and self.char <= "9" or
+                           self.char == "." or self.char == "_") do
         self:NextChar()
       end
 
       token = "number"
     elseif (self.char >= "a" and self.char <= "z" or self.char >= "A" and self.char <= "Z") then
 
-      while self.char and (self.char >= "a" and self.char <= "z" or self.char >= "A" and self.char <= "Z" or self.char >= "0" and self.char <= "9" or self.char == "_") do
+      while self.char and (self.char >= "a" and self.char <= "z" or
+                           self.char >= "A" and self.char <= "Z" or
+                           self.char >= "0" and self.char <= "9" or self.char == "_") do
         self:NextChar()
       end
 
@@ -694,14 +697,17 @@ end
 
 function luapad.EditorPanel:OnTextChanged()
   local ctrlv = false
-  local text = self.TextEntry:GetValue()
+  local text = self.TextEntry:GetText()
   self.TextEntry:SetText("")
 
   if input.IsKeyDown(KEY_BACKQUOTE) and luapad.IgnoreConsoleOpen then
     return
   end
 
-  if ((input.IsKeyDown(KEY_LCONTROL) or input.IsKeyDown(KEY_RCONTROL)) and not (input.IsKeyDown(KEY_LALT) or input.IsKeyDown(KEY_RALT))) then
+  local alt = input.IsKeyDown(KEY_LALT) or input.IsKeyDown(KEY_RALT)
+  local control = input.IsKeyDown(KEY_LCONTROL) or input.IsKeyDown(KEY_RCONTROL)
+
+  if (control and not alt) then
     -- ctrl+[shift+]key
     if (input.IsKeyDown(KEY_V)) then
       -- ctrl+[shift+]V
@@ -814,7 +820,6 @@ function luapad.EditorPanel:OnKeyCodeTyped(code)
   self.Blink = RealTime()
 
   local alt = input.IsKeyDown(KEY_LALT) or input.IsKeyDown(KEY_RALT)
-
   local shift = input.IsKeyDown(KEY_LSHIFT) or input.IsKeyDown(KEY_RSHIFT)
   local control = input.IsKeyDown(KEY_LCONTROL) or input.IsKeyDown(KEY_RCONTROL)
 
