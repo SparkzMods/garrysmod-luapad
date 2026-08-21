@@ -5,34 +5,34 @@ if (SERVER) then
   return
 end
 
-luapad.KeyWordTokens = {
-  ["if"] = true,
-  ["elseif"] = true,
-  ["else"] = true,
-  ["then"] = true,
-  ["end"] = true,
+local KEYWORD_TOKENS = {
+  ["if"      ] = true,
+  ["elseif"  ] = true,
+  ["else"    ] = true,
+  ["then"    ] = true,
+  ["end"     ] = true,
   ["function"] = true,
-  ["do"] = true,
-  ["while"] = true,
-  ["for"] = true,
-  ["repeat"] = true,
-  ["until"] = true,
-  ["break"] = true,
-  ["in"] = true,
-  ["local"] = true,
-  ["true"] = true,
-  ["false"] = true,
-  ["nil"] = true,
-  ["NULL"] = true,
-  ["and"] = true,
-  ["not"] = true,
-  ["or"] = true,
-  ["||"] = true,
-  ["&&"] = true
+  ["do"      ] = true,
+  ["while"   ] = true,
+  ["for"     ] = true,
+  ["repeat"  ] = true,
+  ["until"   ] = true,
+  ["break"   ] = true,
+  ["in"      ] = true,
+  ["local"   ] = true,
+  ["true"    ] = true,
+  ["false"   ] = true,
+  ["nil"     ] = true,
+  ["NULL"    ] = true,
+  ["and"     ] = true,
+  ["not"     ] = true,
+  ["or"      ] = true,
+  ["||"      ] = true,
+  ["&&"      ] = true
 }
 
 -- TODO: Color customization?
-COLOR_HIGHLIGHT = {
+local COLOR_HIGHLIGHT = {
   ["none"       ] = {Color(0, 0, 0, 255)      , false},
   ["number"     ] = {Color(218, 165, 32, 255) , false},
   ["function"   ] = {Color(100, 100, 255, 255), false},
@@ -308,7 +308,7 @@ function luapad.EditorPanel:SyntaxColorLine(row)
       local gstr = luapad.CheckGlobal(sstr)
       local tgstr = type(gstr)
 
-      if (luapad.KeyWordTokens[sstr]) then
+      if (KEYWORD_TOKENS[sstr]) then
 
         token = "expression"
 
@@ -374,12 +374,13 @@ function luapad.EditorPanel:SyntaxColorLine(row)
       token = "operator"
     end
 
-    local color = COLOR_HIGHLIGHT[token]
+    local tC = COLOR_HIGHLIGHT[token]
+    local nH = #cols
 
-    if (#cols > 1 and color == cols[#cols][2]) then
-      cols[#cols][1] = cols[#cols][1] .. self.str
+    if (nH > 1 and color == cols[nH][2]) then
+      cols[nH][1] = cols[nH][1] .. self.str
     else
-      cols[#cols + 1] = {self.str, color}
+      cols[nH + 1] = {self.str, color}
     end
   end
 
