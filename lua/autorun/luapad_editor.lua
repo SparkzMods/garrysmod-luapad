@@ -63,13 +63,13 @@ function luapad.EditorPanel:Init()
   self.TextEntry:SetSize(0, 0)
 
   self.TextEntry.OnLoseFocus = function(self)
-    self.Parent:_OnLoseFocus()
+    self.Parent:OnLoseFocus()
   end
   self.TextEntry.OnTextChanged = function(self)
-    self.Parent:_OnTextChanged()
+    self.Parent:OnTextChanged()
   end
   self.TextEntry.OnKeyCodeTyped = function(self, code)
-    self.Parent:_OnKeyCodeTyped(code)
+    self.Parent:OnKeyCodeTyped(code)
   end
 
   self.TextEntry.Parent = self
@@ -683,14 +683,14 @@ function luapad.EditorPanel:SetSelection(text)
   self:SetCaret(self:SetArea(self:Selection(), text))
 end
 
-function luapad.EditorPanel:_OnLoseFocus()
+function luapad.EditorPanel:OnLoseFocus()
   if (self.TabFocus) then
     self:RequestFocus()
     self.TabFocus = nil
   end
 end
 
-function luapad.EditorPanel:_OnTextChanged()
+function luapad.EditorPanel:OnTextChanged()
   local ctrlv = false
   local text = self.TextEntry:GetValue()
   self.TextEntry:SetText("")
@@ -808,7 +808,7 @@ function luapad.EditorPanel:SelectAll()
   self:ScrollCaret()
 end
 
-function luapad.EditorPanel:_OnKeyCodeTyped(code)
+function luapad.EditorPanel:OnKeyCodeTyped(code)
   self.Blink = RealTime()
 
   local alt = input.IsKeyDown(KEY_LALT) or input.IsKeyDown(KEY_RALT)

@@ -45,12 +45,39 @@ local ACCEPTED_STEAMS = {
 }
 
 -- https://heyter.github.io/js-famfamfam-search/
+-- Extension configurations
+local ENABLE_EXTENS = {
+  ["txt"]       = {Icon = "page_white_text"        },
+  ["lua"]       = {Icon = "page_white_code"        },
+  ["c"]         = {Icon = "page_white_c"           },
+  ["h"]         = {Icon = "page_white_h"           },
+  ["cpp"]       = {Icon = "page_white_cplusplus"   },
+  ["csproj" ]   = {Icon = "page_white_visualstudio"},
+  ["vcxproj"]   = {Icon = "page_white_visualstudio"},
+  ["vbproj" ]   = {Icon = "page_white_visualstudio"},
+  ["fsproj" ]   = {Icon = "page_white_visualstudio"},
+  ["pyproj" ]   = {Icon = "page_white_visualstudio"},
+  ["dbproj" ]   = {Icon = "page_white_visualstudio"},
+  ["wixproj"]   = {Icon = "page_white_visualstudio"},
+  ["cs"]        = {Icon = "page_white_csharp"      },
+  ["rb"]        = {Icon = "page_white_ruby"        },
+  ["ru"]        = {Icon = "page_white_ruby"        },
+  ["sh"]        = {Icon = "page_white_tux"         },
+  ["md"]        = {Icon = "page_white_put"         },
+  ["sql"]       = {Icon = "page_white_database"    },
+  ["csv"]       = {Icon = "page_white_excel"       },
+  ["coffee"]    = {Icon = "page_white_cup"         },
+  ["litcoffee"] = {Icon = "page_white_cup"         },
+  ["csv"]       = {Icon = "page_white_excel"       }
+}
+
+-- Browsed folder configurations
 local ENABLE_FOLDER = {
-  ["data"     ] = {Icon = "table_save", Exco = {"txt" = true, "sql" = true,"lua" = true}},
-  ["lua"      ] = {Icon = "page_code" , Exco = {"txt" = true, "sql" = true,"lua" = true}},
-  ["addons"   ] = {Icon = "package"   , Exco = {"txt" = true, "sql" = true,"lua" = true}},
-  ["download" ] = {Icon = "transmit"  , Exco = {"txt" = true, "sql" = true,"lua" = true}},
-  ["gamemodes"] = {Icon = "joystick"  , Exco = {"txt" = true, "sql" = true,"lua" = true}}
+  ["data"     ] = {Icon = "table_save"},
+  ["lua"      ] = {Icon = "page_code" },
+  ["addons"   ] = {Icon = "package"   },
+  ["download" ] = {Icon = "transmit"  },
+  ["gamemodes"] = {Icon = "joystick"  }
 }
 
 local RESTRICTED_FILES = {
@@ -707,45 +734,75 @@ function luapad.OpenScript()
   local w = luapad.PropertySheet:GetWide()
   local h = luapad.PropertySheet:GetTall()
   local x, y = luapad.PropertySheet:GetPos()
-  luapad.OpenTree = vgui.Create("DTree", luapad.Frame)
 
+  luapad.OpenTree = vgui.Create("DTree", luapad.Frame)
   luapad.OpenTree:SetPadding(5)
   luapad.OpenTree:SetPos(x + (w - w / 4), y + 22)
   luapad.OpenTree:SetSize(w / 4, h - 23)
 
-  function luapad.OpenTree:DoClick()
-    local pNode = luapad.OpenTree:GetSelectedItem()
-    local sPath = pNode.Label:GetValue()
-    local tPath = string.Explode(".", sPath)
-    local nPath = #tPath
+  local pClose = vgui.Create("DButton", luapad.OpenTree)
+  pClose:SetSize(16, 16)
+  pClose:SetPos(luapad.OpenTree:GetWide() - 20, 4)
+  pClose:SetText("X")
+  pClose:SetTooltip("Close")
 
-    if (nPath ~= 1 and (tPath[nPath] == "txt")) then
-
-      Msg(pNode.Path)
-      luapad.AddTab(
-        sPath, file.Read((string.gsub(pNode.Path, "^data/", "") .. sPath), "DATA"),
-        pNode.Path
-      )
-      luapad.OpenTree:Remove()
-    end
+  function pClose:DoClick()
+    luapad.OpenTree:Remove()
   end
 
   function luapad.OpenTree:PopulateNode(pNode, sPath, tConf)
     local tF, tD = file.Find(sPath .. "/*", "GAME", "nameasc")
+    if(not (tF and tD)) then return end
     -- Folders
     for iD = 1, #tD do
       local sD = tD[iD]
-      local pC = pNode:AddNode(sD, "icon16/folder.png")
-      self:PopulateNode(pC, sPath .. "/" .. sD, tConf)
+      local pC = pNode:AddNode(sD, luapad.ToIcon("folder"))
+            pC.DirPath = sPath .. "/" .. sD
+            pC:SetTooltip(pC.DirPath)
+      -- Click a folder
+      function pC.Expander:DoClick()
+        local bEx = self:GetExpanded()
+        if(input.IsKeyDown(KEY_LSHIFT)) then
+          self:ExpandRecurse(not bEx)
+        else
+          self:SetExpanded(not bEx)
+        end
+      end
+      function pC.Expander:DoMiddleClick()
+        local bEx = self:GetExpanded()
+        self:ExpandRecurse(not bEx)
+      end
+      function pC.Expander:DoRightClick()
+        SetClipboardText(self.DirPath)
+      end
+      -- Expand the folder when clicked wherever
+      pC.DoClick       = pC.Expander.DoClick
+      pC.DoMiddleClick = pC.Expander.DoMiddleClick
+      pC.DoRightClick  = pC.Expander.DoRightClick
+      -- Use this as base and attach the rest
+      self:PopulateNode(pC, sC, tConf)
     end
     -- Files
     for iF = 1, #tF do
       local sF = tF[iF]
       local sE = string.GetExtensionFromFilename(sF)
-      if(tConf.Exco[sE]) then
-        local pC = pNode:AddNode(sF, "icon16/page.png")
-        pC.FilePath = sPath .. "/" .. sF
-        pC.IsFile = true
+      local tE = ENABLE_EXTENS[sE] -- Extension
+      if(tE) then
+        local sI = luapad.ToIcon(tE.Icon or "page")
+        local pC = pNode:AddNode(sF, sI)
+        pC.DirPath, pC.IsFile = sPath, true
+        pC:SetTooltip(sF)
+        -- Click a file
+        function pC:DoClick()
+          if(not self.IsFile) then return end
+          local sP, sF = self.DirPath, self:GetText()
+          if(luapad.IsOpen(sF, sP)) then return end
+          local sE = string.GetExtensionFromFilename(sF)
+          local tE = (sE and ENABLE_EXTENS[sE] or nil)
+          local sI = (tE and tE.Icon or nil)
+          luapad.AddTab(sF, file.Read(sP .. sF, "GAME"), sP, nil, sI)
+        end
+        pC.DoDoubleClick = pC.DoClick
       end
     end
   end
@@ -761,16 +818,6 @@ function luapad.OpenScript()
     pRoot:SetImage(luapad.ToIcon((sIco or tConf.Icon) or "computer"))
 
     self:PopulateNode(pRoot, sName, tConf)
-  end
-
-  luapad.OpenCloseButton = vgui.Create("DButton", luapad.OpenTree)
-  luapad.OpenCloseButton:SetSize(16, 16)
-  luapad.OpenCloseButton:SetPos(luapad.OpenTree:GetWide() - 20, 4)
-  luapad.OpenCloseButton:SetText("X")
-  luapad.OpenCloseButton:SetTooltip("Close")
-
-  function luapad.OpenCloseButton:DoClick()
-    luapad.OpenTree:Remove()
   end
 
   luapad.OpenTree:PopulateTree("data"     )
