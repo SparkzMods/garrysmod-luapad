@@ -1100,12 +1100,17 @@ function luapad.EditorPanel:getWordStart(caret)
     return caret
   end
   for i = 0, caret[2] do
-    if (not line[caret[2] - i]) then
-      return {caret[1], caret[2] - i + 1}
+    local idx = (caret[2] - i)
+    local car = line[idx]
+
+    if (not car) then
+      return {caret[1], idx + 1}
     end
-    if (line[caret[2] - i] >= "a" and line[caret[2] - i] <= "z" or line[caret[2] - i] >= "A" and line[caret[2] - i] <= "Z" or line[caret[2] - i] >= "0" and line[caret[2] - i] <= "9") then
+    if (car >= "a" and car <= "z" or
+        car >= "A" and car <= "Z" or
+        car >= "0" and car <= "9") then
     else
-      return {caret[1], caret[2] - i + 1}
+      return {caret[1], idx + 1}
     end
   end
   return {caret[1], 1}
@@ -1117,10 +1122,14 @@ function luapad.EditorPanel:getWordEnd(caret)
     return caret
   end
   for i = caret[2], #line do
-    if (not line[i]) then
+    local car = line[i]
+
+    if (not car) then
       return {caret[1], i}
     end
-    if (line[i] >= "a" and line[i] <= "z" or line[i] >= "A" and line[i] <= "Z" or line[i] >= "0" and line[i] <= "9") then
+    if (car >= "a" and car <= "z" or
+        car >= "A" and car <= "Z" or
+        car >= "0" and car <= "9") then
     else
       return {caret[1], i}
     end
