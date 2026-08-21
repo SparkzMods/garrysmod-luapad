@@ -31,6 +31,21 @@ luapad.KeyWordTokens = {
   ["&&"] = true
 }
 
+-- TODO: Color customization?
+COLOR_HIGHLIGHT = {
+  ["none"       ] = {Color(0, 0, 0, 255)      , false},
+  ["number"     ] = {Color(218, 165, 32, 255) , false},
+  ["function"   ] = {Color(100, 100, 255, 255), false},
+  ["enumeration"] = {Color(184, 134, 11, 255) , false},
+  ["metatable"  ] = {Color(140, 100, 90, 255) , false},
+  ["string"     ] = {Color(120, 120, 120, 255), false},
+  ["expression" ] = {Color(0, 0, 255, 255)    , false},
+  ["operator"   ] = {Color(0, 0, 128, 255)    , false},
+  ["comment"    ] = {Color(0, 120, 0, 255)    , false}
+}
+
+COLOR_HIGHLIGHT["string2"] = COLOR_HIGHLIGHT["string"]
+
 luapad.EditorPanel = {}
 
 -- Create fonts
@@ -264,21 +279,6 @@ function luapad.EditorPanel:SyntaxColorLine(row)
   self.char = ""
   self.str = ""
 
-  -- TODO: Color customization?
-  colors = {
-    ["none"] = {Color(0, 0, 0, 255), false},
-    ["number"] = {Color(218, 165, 32, 255), false},
-    ["function"] = {Color(100, 100, 255, 255), false},
-    ["enumeration"] = {Color(184, 134, 11, 255), false},
-    ["metatable"] = {Color(140, 100, 90, 255), false},
-    ["string"] = {Color(120, 120, 120, 255), false},
-    ["expression"] = {Color(0, 0, 255, 255), false},
-    ["operator"] = {Color(0, 0, 128, 255), false},
-    ["comment"] = {Color(0, 120, 0, 255), false}
-  }
-
-  colors["string2"] = colors["string"]
-
   self:NextChar()
 
   while self.char do
@@ -374,7 +374,8 @@ function luapad.EditorPanel:SyntaxColorLine(row)
       token = "operator"
     end
 
-    color = colors[token]
+    local color = COLOR_HIGHLIGHT[token]
+
     if (#cols > 1 and color == cols[#cols][2]) then
       cols[#cols][1] = cols[#cols][1] .. self.str
     else
