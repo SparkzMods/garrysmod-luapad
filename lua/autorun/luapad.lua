@@ -66,9 +66,15 @@ local ENABLE_EXTENS = {
   ["md"]        = {Icon = "page_white_put"         },
   ["sql"]       = {Icon = "page_white_database"    },
   ["csv"]       = {Icon = "page_white_excel"       },
+  ["tsv"]       = {Icon = "page_white_excel"       },
+  ["json"]      = {Icon = "page_white_code_red"    },
+  ["yaml"]      = {Icon = "page_white_wrench"      },
+  ["xml"]       = {Icon = "page_white_excel"       },
+  ["php"]       = {Icon = "page_white_php"         },
+  ["html"]      = {Icon = "page_white_world"       },
+  ["svg"]       = {Icon = "page_white_vector"      },
   ["coffee"]    = {Icon = "page_white_cup"         },
-  ["litcoffee"] = {Icon = "page_white_cup"         },
-  ["csv"]       = {Icon = "page_white_excel"       }
+  ["litcoffee"] = {Icon = "page_white_cup"         }
 }
 
 -- Browsed folder configurations
@@ -89,7 +95,7 @@ local RESTRICTED_FILES = {
   "addons/Luapad/data/"..BASE_FOLDER.."_cached_server_globals.txt"
 }
 
-local FMT_SYNTAX_HIGHLIGHT = {
+local FMSYNTAX_HILIGHT = {
   V = "luapad._sG[\"%s\"] = \"%s\";",
   T = "luapad._sG[\"%s\"] = {};",
   D = "luapad._sG[\"%s\"][\"%s\"] = \"%s\";"
@@ -139,7 +145,7 @@ if (SERVER) then
 
       for k, v in pairs(_G) do
         if (isfunction(v)) then
-          fSin:Write(FMT_SYNTAX_HIGHLIGHT.V:format(k, "f"))
+          fSin:Write(FMSYNTAX_HILIGHT.V:format(k, "f"))
           fSin:Write("\n")
         elseif (istable(v))
           local hasfunc = false
@@ -151,11 +157,11 @@ if (SERVER) then
           end
 
           if (hasfunc) then
-            fSin:Write(FMT_SYNTAX_HIGHLIGHT.T:format(k))
+            fSin:Write(FMSYNTAX_HILIGHT.T:format(k))
             fSin:Write("\n")
             for k2, v2 in pairs(v) do
               if (isfunction(v2)) then
-                fSin:Write(FMT_SYNTAX_HIGHLIGHT.D:format(k, k2, "f"))
+                fSin:Write(FMSYNTAX_HILIGHT.D:format(k, k2, "f"))
                 fSin:Write("\n")
               end
             end
@@ -168,7 +174,7 @@ if (SERVER) then
       if (_E) then
         for k, v in pairs(_E) do
           if ((isfunction(v) or istable(v)) and string.upper(k) == k) then
-            fSin:Write(FMT_SYNTAX_HIGHLIGHT.V:format(k, "e"))
+            fSin:Write(FMSYNTAX_HILIGHT.V:format(k, "e"))
             fSin:Write("\n")
           end
         end
@@ -189,7 +195,7 @@ if (SERVER) then
           if (hasfunc) then
             for k2, v2 in pairs(v) do
               if (isfunction(v2) and not tMeta[k2]) then
-                fSin:Write(FMT_SYNTAX_HIGHLIGHT:V:format(k2, "m"))
+                fSin:Write(FMSYNTAX_HILIGHT:V:format(k2, "m"))
                 fSin:Write("\n")
               end
             end
