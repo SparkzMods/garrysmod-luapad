@@ -290,6 +290,7 @@ function luapad.About()
   luapad.AddTab("about.txt", file.Read(BASE_FOLDER.."about.txt", "DATA"), "data/"..BASE_FOLDER)
 end
 
+-- https://heyter.github.io/js-famfamfam-search/
 function luapad.ToIcon(sIco)
   return ICON_FORMAT:format(tostring(sIco))
 end
@@ -325,7 +326,7 @@ function luapad.SaveTabs()
   local tI = luapad.PropertySheet:GetItems()
   for iD = 1, #tI do
     local tP = tI[iD]
-    local tTc = tP.Tab:GetStore()
+    local tTc = tP.Tab:GetStreamInfo()
     tO[1], tO[2] = tTc.Name , tTc.Path
     tO[3], tO[4] = (tTc.Label or ""), tTc.Icon
     table.insert(tW, table.concat(tO, BASE_DELIMS))
@@ -340,7 +341,7 @@ function luapad.LoadTabs()
   local tW = ("[\r\n]+"):Explode(sF, true) -- Explode on new line
   for iD = 1, #tW do -- Basically we have one tab on one line
     local tO = BASE_DELIMS:Explode(tW[iD]) -- Empty lines are excluded
-    luapad.AddTab(tO[1], file.Read(tO[2]..tO[1], "DATA"), "data/"..BASE_FOLDER, tO[3], tO[4])
+    luapad.AddTab(tO[1], file.Read(tO[2]..tO[1], "DATA"), "data/"..tO[2], tO[3], tO[4])
   end
 end
 
@@ -376,10 +377,11 @@ function luapad.Toggle()
   end
   luapad.Toolbar = vgui.Create("DIconLayout", luapad.Frame)
   luapad.Toolbar:SetPos(5, 30)
-  luapad.Toolbar:SetSize(luapad.Frame:GetWide() - 6, 22)
+  luapad.Toolbar:SetSize(luapad.Frame:GetWide() - 6, 25)
   luapad.Toolbar:GetSpaceX(5)
   luapad.Toolbar:SetSpaceY(5)
   luapad.Toolbar:SetLayoutDir(LEFT)
+  luapad.Toolbar:DockPadding(2,2,2,2)
   luapad.Toolbar:Dock(TOP)
   luapad.Toolbar:SetStretchWidth(true)
   luapad.Toolbar:SetStretchHeight(false)
@@ -388,15 +390,16 @@ function luapad.Toggle()
   local nW, nH = luapad.Toolbar:GetSize()
   local oW, oH = luapad.Frame:GetSize()
   luapad.PropertySheet = vgui.Create("DPropertySheet", luapad.Frame)
-  luapad.PropertySheet:SetPos(5, nY + nH)
-  luapad.PropertySheet:SetSize(oW - 6, oH - 82)
+  luapad.PropertySheet:SetPos(5, nY + nH + 15)
+  luapad.PropertySheet:SetSize(oW - 6, oH - 80)
   luapad.PropertySheet:SetPadding(2)
   luapad.PropertySheet:SetFadeTime(0)
+  luapad.PropertySheet:DockPadding(2,2,2,2)
   luapad.PropertySheet:Dock(TOP)
 
   function luapad.PropertySheet:OnActiveTabChanged(oT, nT)
     if(IsValid(nT)) then
-      local tTc = nT:GetStore()
+      local tTc = nT:GetStreamInfo()
       luapad.Frame:SetTitle("Luapad - " .. tTc.Path .. tTc.Name)
     else
       luapad.Frame:SetTitle("Luapad")
@@ -415,13 +418,14 @@ function luapad.Toggle()
   luapad.Statusbar = vgui.Create("DIconLayout", luapad.Frame)
   luapad.Statusbar:SetPos(3, oH - 25)
   luapad.Statusbar:SetSize(oW - 6, 22)
-  luapad.Statusbar:GetSpaceX(5)
-  luapad.Statusbar:SetSpaceY(5)
+  luapad.Statusbar:GetSpaceX(1)
+  luapad.Statusbar:SetSpaceY(1)
   luapad.Statusbar:SetLayoutDir(LEFT)
   luapad.Statusbar:SetStretchWidth(true)
   luapad.Statusbar:SetStretchHeight(false)
   luapad.Statusbar.PerformLayout = luapad.Toolbar.PerformLayout
-  luapad.Statusbar:Dock(BOTTOM)
+  luapad.Statusbar:DockPadding(2,2,2,2)
+  luapad.Statusbar:Dock(TOP)
   luapad.Statusbar:InvalidateLayout(true)
 
   luapad.AddToolbarItem("New (CTRL + N)", luapad.ToIcon("page_white_add"), luapad.NewTab)
@@ -450,14 +454,18 @@ function luapad.AddToolbarItem(tooltip, mat, func1, func2)
   local pBut = luapad.Toolbar:Add("DImageButton")
   pBut:SetImage(mat)
   pBut:SetTooltip(tooltip)
-  pBut:SetSize(16, 16)
-  function pBut:DoClick()
-    local bS, sE = pcall(func1); if(not bS) then
-      luapad.SetStatus("LeftClick ["..pBut:GetTooltip().."] error: "..sE, "STAT_ER") end
+  pBut:SetSize(22, 22)
+  if(func1) then
+    function pBut:DoClick()
+      local bS, sE = pcall(func1); if(not bS) then
+        luapad.SetStatus("LeftClick ["..pBut:GetTooltip().."] error: "..sE, "STAT_ER") end
+    end
   end
-  function pBut:DoRightClick()
-    local bS, sE = pcall(func2); if(not bS) then
-      luapad.SetStatus("RightClick ["..pBut:GetTooltip().."] error: "..sE, "STAT_ER") end
+  if(func2) then
+    function pBut:DoRightClick()
+      local bS, sE = pcall(func2); if(not bS) then
+        luapad.SetStatus("RightClick ["..pBut:GetTooltip().."] error: "..sE, "STAT_ER") end
+    end
   end
 end
 
@@ -514,7 +522,7 @@ function luapad.CloseTab(name, label)
   -- The context menu option is available
   for iD = 1, #tI do
     local tP = tI[iD]
-    local tTc = tP.Tab:GetStore()
+    local tTc = tP.Tab:GetStreamInfo()
     if(tTc.Label and tTc.Label:find(sName, 1, true)) then
       pSheet:CloseTab(tP.Tab, true)
       break
@@ -610,10 +618,12 @@ function luapad.AddTab(name, content, path, label, icon)
   if(not IsValid(pSheet)) then return end
 
   local pPan = vgui.Create("DScrollPanel", pSheet)
-  pPan:SetSize(pSheet:GetWide(), pSheet:GetTall() - 23)
+  if(not IsValid(pPan)) then return end
+
+  local nW, nH = pSheet:GetSize()
+  pPan:SetSize(nW, nH - 22)
 
   local nW, nH = pPan:GetSize()
-
   local pText = vgui.Create("LuapadEditor", pPan)
   pText:SetSize(nW, nH)
   pText:SetText(sCon)
@@ -634,14 +644,16 @@ function luapad.AddTab(name, content, path, label, icon)
 
   pTab:SetTooltip(tSor.Full)
 
-  function pTab:GetStore()
+  function pTab:GetStreamInfo()
     return self[PANEL_STORKY]
   end
 
   function pTab:GetText()
-    PrintTable(self:GetPanel():GetChildren())
-
-    return self:GetPanel():GetChildren()[1]:GetText()
+    local pCanv = self:GetPanel():GetChildren()[1]
+    if(not IsValid(pCanv)) then return "" end
+    local pText = pCanv:GetChildren()[1]
+    if(not IsValid(pText)) then return "" end
+    return pText:GetText()
   end
 
   function pTab:DoClick()
@@ -662,16 +674,16 @@ function luapad.AddTab(name, content, path, label, icon)
     local pIn, pOp = pMenu:AddSubMenu("Copy")
     pOp:SetIcon(luapad.ToIcon("page_copy"))
     pIn:AddOption("Name", function()
-      SetClipboardText(self:GetStore().Name)
+      SetClipboardText(self:GetStreamInfo().Name)
     end):SetImage(luapad.ToIcon("page_green"))
     pIn:AddOption("Label", function()
-      SetClipboardText(self:GetStore().Label)
+      SetClipboardText(self:GetStreamInfo().Label)
     end):SetImage(luapad.ToIcon("tag_green"))
     pIn:AddOption("Path", function()
-      SetClipboardText(self:GetStore().Path)
+      SetClipboardText(self:GetStreamInfo().Path)
     end):SetImage(luapad.ToIcon("folder"))
     pIn:AddOption("Full", function()
-      SetClipboardText(self:GetStore().Path .. self:GetStore().Name)
+      SetClipboardText(self:GetStreamInfo().Path .. self:GetStreamInfo().Name)
     end):SetImage(luapad.ToIcon("folder_page"))
     pIn:AddOption("Index", function()
       SetClipboardText(tostring(self:GetPropertySheet():GetTabIndex(self)))
@@ -734,7 +746,7 @@ function luapad.IsOpen(name, path)
   local tI = luapad.PropertySheet:GetItems()
   for iD = 1, #tI do
     local tP = tI[iD]
-    local tTc = tP.Tab:GetStore()
+    local tTc = tP.Tab:GetStreamInfo()
     if(sPth ~= "") then
       if(tTc.Full == sNam) then return true end
     else
@@ -878,7 +890,7 @@ function luapad.SaveScript()
   local pTab = luapad.PropertySheet:GetActiveTab()
   if(not IsValid(pTab)) then return end
 
-  local tTc = pTab:GetStore()
+  local tTc = pTab:GetStreamInfo()
   local sD, sN = tTc.Path, tTc.Name
 
   if(string.find(sD, "^data/") == 1) then
@@ -897,8 +909,6 @@ function luapad.SaveScript()
 
       file.Write(sF, sT)
 
-      print(sF, sT)
-
       if file.Exists(sF, "DATA") then
         luapad.SetStatus("File successfully saved!", "SAVE_OK")
       else
@@ -912,7 +922,7 @@ function luapad.SaveAsScript()
   local pTab = luapad.PropertySheet:GetActiveTab()
   if(not IsValid(pTab)) then return end
 
-  local tTc = pTab:GetStore()
+  local tTc = pTab:GetStreamInfo()
 
   Derma_StringRequest(
     "Luapad", "You are about to save a file, please enter the desired filename.",
@@ -932,9 +942,6 @@ function luapad.SaveAsScript()
         local sB = string.gsub(sB, "^data/", "", 1)
               sB = string.gsub(sB, "^../", "", 1)
         local sF, sT = (sB .. sN), (pTab:GetText() or "")
-
-        print("SaveAsScript", sD, sN)
-        print("SaveAsScript", sF, sT)
 
         file.CreateDir(sB)
         file.Write(sF, sT)
@@ -956,23 +963,23 @@ end
 function luapad.RunScriptClient()
   local objectDefintions = "local me = player.GetByID(" .. LocalPlayer():EntIndex() ..
                              ")\nlocal this = me:GetEyeTrace().Entity\n"
-  local did, err = pcall(
+  local bS, sE = pcall(
                      RunString,
                      objectDefintions .. luapad.PropertySheet:GetActiveTab():GetText()
                    )
-  if did then
+  if bS then
     luapad.SetStatus("Code ran successfully!", "RUNC_OK")
   else
-    luapad.SetStatus(err, "RUNC_ER")
+    luapad.SetStatus("Runtime error: "..sE, "RUNC_ER")
   end
 end
 
 function luapad.RunScriptClientFromServer(script)
-  local did, err = pcall(RunString, script)
-  if did then
+  local bS, sE = pcall(RunString, script)
+  if bS then
     luapad.SetStatus("Code ran successfully!", "RNCS_OK")
   else
-    luapad.SetStatus(err, "RNCS_ER")
+    luapad.SetStatus("Runtime error: "..sE, "RNCS_ER")
   end
 end
 

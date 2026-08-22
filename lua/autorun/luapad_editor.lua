@@ -32,7 +32,6 @@ local KEYWORD_TOKENS = {
 }
 
 -- TODO: Color customization?
---[[
 local COLOR_HIGHLIGHT = {
   ["none"       ] = {Color(0, 0, 0, 255)      , false},
   ["number"     ] = {Color(218, 165, 32, 255) , false},
@@ -46,7 +45,6 @@ local COLOR_HIGHLIGHT = {
 }
 
 COLOR_HIGHLIGHT["string2"] = COLOR_HIGHLIGHT["string"]
-]]
 
 luapad.EditorPanel = {}
 
@@ -132,7 +130,8 @@ end
 
 function luapad.EditorPanel:OnMousePressed(code)
   if (code == MOUSE_LEFT) then
-    if ((CurTime() - self.LastClick) < 1 and self.tmp and self:CursorToCaret()[1] == self.Caret[1] and self:CursorToCaret()[2] == self.Caret[2]) then
+    local cucar = self:CursorToCaret()
+    if ((CurTime() - self.LastClick) < 1 and self.tmp and cucar[1] == self.Caret[1] and cucar[2] == self.Caret[2]) then
       self.Start = self:getWordStart(self.Caret)
       self.Caret = self:getWordEnd(self.Caret)
       self.tmp = false
@@ -281,20 +280,6 @@ function luapad.EditorPanel:SyntaxColorLine(row)
   self.char = ""
   self.str = ""
 
-  local COLOR_HIGHLIGHT = {
-    ["none"       ] = {Color(0, 0, 0, 255)      , false},
-    ["number"     ] = {Color(218, 165, 32, 255) , false},
-    ["function"   ] = {Color(100, 100, 255, 255), false},
-    ["enumeration"] = {Color(184, 134, 11, 255) , false},
-    ["metatable"  ] = {Color(140, 100, 90, 255) , false},
-    ["string"     ] = {Color(120, 120, 120, 255), false},
-    ["expression" ] = {Color(0, 0, 255, 255)    , false},
-    ["operator"   ] = {Color(0, 0, 128, 255)    , false},
-    ["comment"    ] = {Color(0, 120, 0, 255)    , false}
-  }
-
-  COLOR_HIGHLIGHT["string2"] = COLOR_HIGHLIGHT["string"]
-
   self:NextChar()
 
   while self.char do
@@ -331,8 +316,8 @@ function luapad.EditorPanel:SyntaxColorLine(row)
 
         token = "expression"
 
-      elseif (gstr and (tgstr == "function" or gstr == "f" or gstr == "e" or gstr == "m" or tgstr == "table") or (lasttable and lasttable[sstr])) then -- Could be better code, but what the hell; it works
-
+      elseif (gstr and (tgstr == "function" or gstr == "f" or gstr == "e" or gstr == "m" or tgstr == "table") or (lasttable and lasttable[sstr])) then
+         -- Could be better code, but what the hell; it works
         if (tgstr == "table") then
           lasttable = gstr
         end
@@ -482,7 +467,8 @@ function luapad.EditorPanel:PaintLine(row)
     if ((RealTime() - self.Blink) % 0.8 < 0.4) then
       if (self.Caret[2] - self.Scroll[2] >= 0) then
         surface.SetDrawColor(72, 61, 139, 255)
-        surface.DrawRect((self.Caret[2] - self.Scroll[2]) * width + width * 3 + 6, (self.Caret[1] - self.Scroll[1]) * height, 1, height)
+        surface.DrawRect((self.Caret[2] - self.Scroll[2]) * width + width * 3 + 6,
+                         (self.Caret[1] - self.Scroll[1]) * height, 1, height)
       end
     end
   end
