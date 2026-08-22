@@ -130,7 +130,7 @@ if (SERVER) then
     AddCSLuaFile("autorun/luapad_editor.lua")
   end
 
-  if(not file.Exists(BASE_FOLDER.."_server_globals.txt" "DATA")) then
+  if(not file.Exists(BASE_FOLDER.."_server_globals.txt", "DATA")) then
 
     local fSin = file.Open(BASE_FOLDER.."_server_globals.txt", "wb", "DATA")
 
@@ -147,7 +147,7 @@ if (SERVER) then
         if (isfunction(v)) then
           fSin:Write(FMSYNTAX_HILIGHT.V:format(k, "f"))
           fSin:Write("\n")
-        elseif (istable(v))
+        elseif (istable(v)) then
           local hasfunc = false
           for k1, v1 in pairs(v) do
             if (isfunction(v1)) then
@@ -195,7 +195,7 @@ if (SERVER) then
           if (hasfunc) then
             for k2, v2 in pairs(v) do
               if (isfunction(v2) and not tMeta[k2]) then
-                fSin:Write(FMSYNTAX_HILIGHT:V:format(k2, "m"))
+                fSin:Write(FMSYNTAX_HILIGHT.V:format(k2, "m"))
                 fSin:Write("\n")
               end
             end
@@ -208,11 +208,11 @@ if (SERVER) then
     end
   end
 
-  if(not file.Exists(BASE_FOLDER.."_welcome.txt" "DATA")) then
+  if(not file.Exists(BASE_FOLDER.."_welcome.txt", "DATA")) then
     resource.AddFile("data/"..BASE_FOLDER.."_welcome.txt")
   end
 
-  if(not file.Exists(BASE_FOLDER.."_about.txt" "DATA")) then
+  if(not file.Exists(BASE_FOLDER.."_about.txt", "DATA")) then
     resource.AddFile("data/"..BASE_FOLDER.."_about.txt")
   end
 
@@ -321,7 +321,7 @@ function luapad.SaveTabs()
     local tP = tI[iD]
     local vT = tP.Tab:GetStore()
     tO[1], tO[2] = vT.Name , vT.Path
-    tO[3], tO[4] = vT.Label, vT.Icon
+    tO[3], tO[4] = (vT.Label or ""), vT.Icon
     table.insert(tW, table.concat(tO, BASE_DELIMS))
   end
   file.Write(BASE_FOLDER.."_savedtabs.txt", table.concat(tW, "\n"))
@@ -338,11 +338,11 @@ function luapad.LoadTabs()
 end
 
 function luapad.Toggle()
-  if SERVER or not CanUseLuapad(LocalPlayer()) then
+  if (SERVER or not CanUseLuapad(LocalPlayer())) then
     return
   end
 
-  if (luapad.Frame) then
+  if (IsValid(luapad.Frame)) then
     luapad.Frame:SetVisible(not luapad.Frame:IsVisible())
     return
   end
@@ -354,6 +354,7 @@ function luapad.Toggle()
   luapad.Frame:SetTitle("Luapad")
   luapad.Frame:ShowCloseButton(true)
   luapad.Frame:MakePopup()
+
   function luapad.Frame:OnClose()
     luapad.Toggle()
     luapad.SaveTabs()
@@ -362,9 +363,12 @@ function luapad.Toggle()
   luapad.Toolbar = vgui.Create("DIconLayout", luapad.Frame)
   luapad.Toolbar:SetPos(3, 26)
   luapad.Toolbar:SetSize(luapad.Frame:GetWide() - 6, 22)
-  luapad.Toolbar:SetSpacing(5)
-  luapad.Toolbar:EnableHorizontal(true)
-  luapad.Toolbar:EnableVerticalScrollbar(false)
+  luapad.Toolbar:GetSpaceX(5)
+  luapad.Toolbar:SetSpaceY(5)
+  luapad.Toolbar:SetLayoutDir(LEFT)
+  luapad.Toolbar:SetStretchWidth(true)
+  luapad.Toolbar:SetStretchHeight(false)
+
   function luapad.Toolbar:PerformLayout()
     local Wide = self:GetWide()
     local YPos = 3
@@ -414,7 +418,7 @@ function luapad.Toggle()
     for iT = 1, #tT do local tP = tT[iT]
       if(pTab == tP.Tab) then return iT end
     end; return nil
-  and
+  end
 
   luapad.PropertySheet:InvalidateLayout()
 
@@ -429,9 +433,11 @@ function luapad.Toggle()
   luapad.Statusbar = vgui.Create("DIconLayout", luapad.Frame)
   luapad.Statusbar:SetPos(3, luapad.Frame:GetTall() - 25)
   luapad.Statusbar:SetSize(luapad.Frame:GetWide() - 6, 22)
-  luapad.Statusbar:SetSpacing(5)
-  luapad.Statusbar:EnableHorizontal(true)
-  luapad.Statusbar:EnableVerticalScrollbar(false)
+  luapad.Statusbar:GetSpaceX(5)
+  luapad.Statusbar:SetSpaceY(5)
+  luapad.Statusbar:SetLayoutDir(LEFT)
+  luapad.Statusbar:SetStretchWidth(true)
+  luapad.Statusbar:SetStretchHeight(false)
   luapad.Statusbar.PerformLayout = luapad.Toolbar.PerformLayout
   luapad.Statusbar:InvalidateLayout()
 
@@ -444,23 +450,20 @@ function luapad.Toggle()
 end
 
 function luapad.AddToolbarItem(tooltip, mat, func1, func2)
-  local pButton = vgui.Create("DImageButton")
-  pButton:SetImage(mat)
-  pButton:SetTooltip(tooltip)
-  pButton:SetSize(16, 16)
-  pButton.DoClick = func1
-  pButton.DoRightClick = func2
-
-  luapad.Toolbar:AddItem(pButton)
+  local pBut = luapad.Toolbar:Add("DImageButton")
+  pBut:SetImage(mat)
+  pBut:SetTooltip(tooltip)
+  pBut:SetSize(16, 16)
+  pBut.DoClick = func1
+  pBut.DoRightClick = func2
 end
 
 function luapad.AddToolbarSpacer()
-  local pLab = vgui.Create("DLabel")
-  if(not IsValid()pLab) then return end
+  local pLab = luapad.Toolbar:Add("DLabel")
+  if(not IsValid(pLab)) then return end
 
   pLab:SetText(" "..BASE_DELIMS.." ")
   pLab:SizeToContents()
-  luapad.Toolbar:AddItem(pLab)
 end
 
 function luapad.SetStatus(str, idx)
@@ -524,7 +527,7 @@ function luapad.CloseTabLeft(pTab, bInc)
   if(not bInc) then iT = iT - 1 end
   local tI = pS:GetItems()
   local cT, nT = tI[1].Tab, iT
-  while(tI[1] and IsValid(cT) and nT > 0) then
+  while(tI[1] and IsValid(cT) and nT > 0) do
     pS:CloseTab(cT, true)
     cT = tI[1].Tab
     nT = nT - 1
@@ -541,7 +544,7 @@ function luapad.CloseTabRight(pTab, bInc)
   local nT = (#tI - iT + 1)
   if(not bInc) then iT = iT + 1 end
   local cT = tI[iT].Tab
-  while(tI[iT] and IsValid(cT) and nT > 0) then
+  while(tI[iT] and IsValid(cT) and nT > 0) do
     pS:CloseTab(cT, true)
     cT = tI[iT].Tab
     nT = nT - 1
@@ -556,7 +559,7 @@ function luapad.CloseActiveTab()
 
   if(nT == 0) then
     return
-  if(nT == 1) then
+  elseif(nT == 1) then
     pS:SetActiveTab(pS.Items[1].Tab)
     return
   else
@@ -587,8 +590,6 @@ function luapad.AddTab(name, content, path, label, icon)
   local pSheet = luapad.PropertySheet
   if(not IsValid(pSheet)) then return end
 
-  local tSkin = pSheet:GetSkin()
-
   local pPan = vgui.Create("DScrollPanel", pSheet)
   pPan:SetSize(pSheet:GetWide(), pSheet:GetTall() - 23)
 
@@ -597,7 +598,6 @@ function luapad.AddTab(name, content, path, label, icon)
   pText:SetText(content)
   pText:RequestFocus()
   pText:SizeToContents()
-  pText:UpdateColours(tSkin)
 
   pPan:AddItem(pText)
 
