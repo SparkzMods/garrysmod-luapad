@@ -26,6 +26,8 @@ local DEBG_FORMAT = "Found routine [%s] in %s"
 
 local COLOR_STATUS = {
   ["#STATUS"] = Color(0 ,  0 ,  0,  0 ),
+  ["STAT_OK"] = Color(72, 205, 72, 255),
+  ["STAT_ER"] = Color(205, 72, 72, 255),
   ["OPEN_OK"] = Color(72, 205, 72, 255),
   ["OPEN_ER"] = Color(205, 72, 72, 255),
   ["SAVE_OK"] = Color(72, 205, 72, 255),
@@ -90,12 +92,13 @@ local ENABLE_FOLDER = {
 }
 
 local RESTRICTED_FILES = {
-  "data/"..BASE_FOLDER.."_savedtabs.txt",
-  "data/"..BASE_FOLDER.."_server_globals.txt",
-  "data/"..BASE_FOLDER.."_cached_server_globals.txt",
-  "addons/Luapad/data/"..BASE_FOLDER.."_savedtabs.txt",
-  "addons/Luapad/data/"..BASE_FOLDER.."_server_globals.txt",
-  "addons/Luapad/data/"..BASE_FOLDER.."_cached_server_globals.txt"
+  "data/"..BASE_FOLDER.."welcome.txt",
+  "data/"..BASE_FOLDER.."saved_tabs.txt",
+  "data/"..BASE_FOLDER.."server_globals.txt",
+  "data/"..BASE_FOLDER.."cached_server_globals.txt",
+  "addons/luapad/data/"..BASE_FOLDER.."saved_tabs.txt",
+  "addons/luapad/data/"..BASE_FOLDER.."server_globals.txt",
+  "addons/luapad/data/"..BASE_FOLDER.."cached_server_globals.txt"
 }
 
 local FMSYNTAX_HILIGHT = {
@@ -133,9 +136,9 @@ if (SERVER) then
     AddCSLuaFile("autorun/luapad_editor.lua")
   end
 
-  if(not file.Exists(BASE_FOLDER.."_server_globals.txt", "DATA")) then
+  if(not file.Exists(BASE_FOLDER.."server_globals.txt", "DATA")) then
 
-    local fSin = file.Open(BASE_FOLDER.."_server_globals.txt", "wb", "DATA")
+    local fSin = file.Open(BASE_FOLDER.."server_globals.txt", "wb", "DATA")
 
     if(fSin) then
 
@@ -207,16 +210,16 @@ if (SERVER) then
       end
 
       fSin:Flush(); fSin:Close()
-      resource.AddFile("data/"..BASE_FOLDER.."_server_globals.txt")
+      resource.AddFile("data/"..BASE_FOLDER.."server_globals.txt")
     end
   end
 
-  if(not file.Exists(BASE_FOLDER.."_welcome.txt", "DATA")) then
-    resource.AddFile("data/"..BASE_FOLDER.."_welcome.txt")
+  if(not file.Exists(BASE_FOLDER.."welcome.txt", "DATA")) then
+    resource.AddFile("data/"..BASE_FOLDER.."welcome.txt")
   end
 
-  if(not file.Exists(BASE_FOLDER.."_about.txt", "DATA")) then
-    resource.AddFile("data/"..BASE_FOLDER.."_about.txt")
+  if(not file.Exists(BASE_FOLDER.."about.txt", "DATA")) then
+    resource.AddFile("data/"..BASE_FOLDER.."about.txt")
   end
 
   function luapad.Upload(len, ply)
@@ -273,18 +276,18 @@ if (CLIENT) then
   net.Receive("luapad.DownloadRunClient", luapad.DownloadRunClient)
 end
 
-if (file.Exists(BASE_FOLDER.."_server_globals.txt", "DATA")) then
-  RunString(file.Read(BASE_FOLDER.."_server_globals.txt", "DATA"))
+if (file.Exists(BASE_FOLDER.."server_globals.txt", "DATA")) then
+  RunString(file.Read(BASE_FOLDER.."server_globals.txt", "DATA"))
 else
   include("server_globals.lua")
   RunString(file.Read(BASE_FOLDER.."_cached_server_globals.txt", "DATA"))
 end
 
 function luapad.About()
-  if (not file.Exists(BASE_FOLDER.."_about.txt", "DATA")) then
+  if (not file.Exists(BASE_FOLDER.."about.txt", "DATA")) then
     return
   end
-  luapad.AddTab("_about.txt", file.Read(BASE_FOLDER.."_about.txt", "DATA"), "data/"..BASE_FOLDER)
+  luapad.AddTab("about.txt", file.Read(BASE_FOLDER.."about.txt", "DATA"), "data/"..BASE_FOLDER)
 end
 
 function luapad.ToIcon(sIco)
@@ -294,19 +297,19 @@ end
 function luapad.CheckGlobal(func)
   if (luapad._sG[func] ~= nil) then
     if (luapad.debugmode) then
-      Msg(DEBG_FORMAT:format(func, "luapad._sG"))
+      print(DEBG_FORMAT:format(func, "luapad._sG"))
     end
     return luapad._sG[func]
   end
   if (_E and _E[func] ~= nil) then
     if (luapad.debugmode) then
-      Msg(DEBG_FORMAT:format(func, "_E"))
+      print(DEBG_FORMAT:format(func, "_E"))
     end
     return _E[func]
   end
   if (_G[func] ~= nil) then
     if (luapad.debugmode) then
-      Msg(DEBG_FORMAT:format(func, "_G"))
+      print(DEBG_FORMAT:format(func, "_G"))
     end
     return _G[func]
   end
@@ -327,12 +330,12 @@ function luapad.SaveTabs()
     tO[3], tO[4] = (tTc.Label or ""), tTc.Icon
     table.insert(tW, table.concat(tO, BASE_DELIMS))
   end
-  file.Write(BASE_FOLDER.."_savedtabs.txt", table.concat(tW, "\n"))
+  file.Write(BASE_FOLDER.."saved_tabs.txt", table.concat(tW, "\n"))
 end
 
 function luapad.LoadTabs()
   luapad.PropertySheet:Clear()
-  local sF = file.Read(BASE_FOLDER.."_savedtabs.txt", "DATA" )
+  local sF = file.Read(BASE_FOLDER.."saved_tabs.txt", "DATA" )
   if(not sF) then return end -- File not found then bail out
   local tW = ("[\r\n]+"):Explode(sF, true) -- Explode on new line
   for iD = 1, #tW do -- Basically we have one tab on one line
@@ -431,10 +434,10 @@ function luapad.Toggle()
   luapad.AddToolbarItem("Save Tabs", luapad.ToIcon("page_white_get"), luapad.SaveTabs)
   luapad.AddToolbarItem("Load Tabs", luapad.ToIcon("page_white_put"), luapad.LoadTabs)
 
-  if (file.Exists(BASE_FOLDER.."_savedtabs.txt", "DATA")) then
+  if (file.Exists(BASE_FOLDER.."saved_tabs.txt", "DATA")) then
     luapad.LoadTabs()
-  elseif (file.Exists(BASE_FOLDER.."_welcome.txt", "DATA")) then
-    luapad.AddTab("_welcome.txt", file.Read(BASE_FOLDER.."_welcome.txt", "DATA"), "data/"..BASE_FOLDER)
+  elseif (file.Exists(BASE_FOLDER.."welcome.txt", "DATA")) then
+    luapad.AddTab("welcome.txt", file.Read(BASE_FOLDER.."welcome.txt", "DATA"), "data/"..BASE_FOLDER)
   else
     luapad.NewTab()
   end
@@ -448,8 +451,14 @@ function luapad.AddToolbarItem(tooltip, mat, func1, func2)
   pBut:SetImage(mat)
   pBut:SetTooltip(tooltip)
   pBut:SetSize(16, 16)
-  pBut.DoClick = func1
-  pBut.DoRightClick = func2
+  function pBut:DoClick()
+    local bS, sE = pcall(func1); if(not bS) then
+      luapad.SetStatus("LeftClick ["..pBut:GetTooltip().."] error: "..sE, "STAT_ER") end
+  end
+  function pBut:DoRightClick()
+    local bS, sE = pcall(func2); if(not bS) then
+      luapad.SetStatus("RightClick ["..pBut:GetTooltip().."] error: "..sE, "STAT_ER") end
+  end
 end
 
 function luapad.AddToolbarSpacer()
@@ -585,7 +594,7 @@ function luapad.CloseActiveTab()
       pS:SetActiveTab(pS.Items[iT - 1].Tab)
     end
 
-    aT:CloseTab(aT, true)
+    pS:CloseTab(aT, true)
     pS:InvalidateLayout()
   end
 end
@@ -603,8 +612,10 @@ function luapad.AddTab(name, content, path, label, icon)
   local pPan = vgui.Create("DScrollPanel", pSheet)
   pPan:SetSize(pSheet:GetWide(), pSheet:GetTall() - 23)
 
+  local nW, nH = pPan:GetSize()
+
   local pText = vgui.Create("LuapadEditor", pPan)
-  pText:Dock(FILL)
+  pText:SetSize(nW, nH)
   pText:SetText(sCon)
   pText:RequestFocus()
   pText:SizeToContents()
@@ -628,6 +639,8 @@ function luapad.AddTab(name, content, path, label, icon)
   end
 
   function pTab:GetText()
+    PrintTable(self:GetPanel():GetChildren())
+
     return self:GetPanel():GetChildren()[1]:GetText()
   end
 
@@ -735,6 +748,7 @@ function luapad.NewTab(content)
   local sO = BASE_FOLDER .. BASE_FMNAME
   local tI = luapad.PropertySheet:GetItems()
   local sB, iF = "data/" .. BASE_FOLDER, nil
+  local sCon = tostring(content or "")
 
   for iD = 1, 10 do
     local sF = sO:format(iD)
@@ -744,10 +758,12 @@ function luapad.NewTab(content)
       break
     end
   end
+
   if(iF) then -- Index is present open the file
-    luapad.AddTab(BASE_FMNAME:format(iF), content, sB)
+    luapad.AddTab(BASE_FMNAME:format(iF), sCon, sB)
+    luapad.SetStatus("Open the next name available!", "OPEN_OK")
   else -- Rise a status bar message
-    luapad.SetStatus("Attempt to open new tab failed! Clean origin ["..sB.."]", "OPEN_ER")
+    luapad.SetStatus("Open new tab failed! Clean origin ["..sB.."]", "OPEN_ER")
   end
 end
 
@@ -881,8 +897,9 @@ function luapad.SaveScript()
 
       file.Write(sF, sT)
 
+      print(sF, sT)
+
       if file.Exists(sF, "DATA") then
-        print("Exists!")
         luapad.SetStatus("File successfully saved!", "SAVE_OK")
       else
         luapad.SetStatus("Save failed! (check your filename for illegal characters)", "SAVE_ER")
