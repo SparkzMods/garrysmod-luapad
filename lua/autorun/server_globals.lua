@@ -1,4 +1,4 @@
--- This is an automatically generated cache file for serverside globals, metas, and enums
+-- This is an automatically generated cache file for server-side global functions, meta-tables, and enumerations
 -- Don't touch it, or you'll probably mess up your syntax highlighting
 
 luapad._sG = {};
